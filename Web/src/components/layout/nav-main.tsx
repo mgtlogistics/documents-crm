@@ -15,6 +15,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+import ProtectedModule from "../global/ProtectedModule"
 
 
 
@@ -29,6 +30,7 @@ export function NavMain({
     items?: {
       title: string
       url: string
+      moduleName: string
     }[]
   }[]
 }) {
@@ -42,6 +44,7 @@ export function NavMain({
             defaultOpen={item.isActive}
             className="group/collapsible"
           >
+
             <SidebarMenuItem>
               <CollapsibleTrigger asChild>
                 <SidebarMenuButton tooltip={item.title}>
@@ -53,13 +56,15 @@ export function NavMain({
               <CollapsibleContent>
                 <SidebarMenuSub>
                   {item.items?.map((subItem) => (
-                    <SidebarMenuSubItem key={subItem.title}>
-                      <SidebarMenuSubButton asChild>
-                        <Link to={subItem.url}>
-                          <span>{subItem.title}</span>
-                        </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
+                    <ProtectedModule key={subItem.title} page={subItem.moduleName} type="read" method="hide">
+                      <SidebarMenuSubItem key={subItem.title}>
+                        <SidebarMenuSubButton asChild>
+                          <Link to={subItem.url}>
+                            <span>{subItem.title}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </ProtectedModule>
                   ))}
                 </SidebarMenuSub>
               </CollapsibleContent>

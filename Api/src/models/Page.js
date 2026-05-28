@@ -5,6 +5,11 @@ const pageSchema = new mongoose.Schema({
     type: String,
     default: () => new mongoose.Types.ObjectId().toString()
   },
+  modules: {
+    type: [String],
+    ref: 'Module',
+    default: []
+  },
   name:{
     type: String,
     required: true,

@@ -12,6 +12,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import ProtectedModule from "../global/ProtectedModule"
 
 export function NavProjects({
   projects,
@@ -20,6 +21,7 @@ export function NavProjects({
     name: string
     url: string
     icon: LucideIcon
+    moduleName: string
   }[]
 }) {
 
@@ -27,14 +29,16 @@ export function NavProjects({
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarMenu>
         {projects.map((item) => (
-          <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton asChild>
-              <Link to={item.url}>
-                <item.icon />
-                <span>{item.name}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          <ProtectedModule key={item.name} page={item.moduleName} type="read" method="hide">
+            <SidebarMenuItem key={item.name}>
+              <SidebarMenuButton asChild>
+                <Link to={item.url}>
+                  <item.icon />
+                  <span>{item.name}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </ProtectedModule>
         ))}
       </SidebarMenu>
     </SidebarGroup>

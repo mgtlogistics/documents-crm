@@ -2,7 +2,6 @@ import Staff from "../models/Staff.js";
 import RoleAssignment from "../models/RoleAssignment.js";
 import Role from "../models/Role.js";
 import Store from "../models/Store.js";
-import Brand from "../models/Brand.js";
 import Module from "../models/Module.js";
 
 import express from "express";
@@ -172,12 +171,39 @@ router.post('/login', async (req, res) => {
       .populate('pageId', 'name')
       .lean();
 
-    modules = modules.map(m => (
-      {
-        _id: m._id,
-        page: m.pageId.name,
-        type: m.type,
-      }));
+    const moduleDiagnostics = modules.map((module) => ({
+      moduleId: module._id,
+      type: module.type,
+      pageId: module.pageId?._id ?? module.pageId ?? null,
+      pageName: module.pageId?.name ?? null,
+    }));
+
+    const invalidModules = moduleDiagnostics.filter((module) => !module.pageId || !module.pageName);
+
+    if (invalidModules.length > 0) {
+      console.error('Login fallo por configuracion invalida de modulos', {
+        totalModules: modules.length,
+        invalidCount: invalidModules.length,
+        invalidModules,
+        moduleDiagnostics,
+      });
+
+      return res.status(500).json({
+        message: 'Configuracion invalida de modulos',
+        error: 'Hay modulos sin pagina asociada o con una referencia pageId invalida',
+        details: invalidModules.map((module) => ({
+          moduleId: module._id,
+          pageId: module.pageId ?? null,
+          type: module.type,
+        })),
+      });
+    }
+
+    modules = moduleDiagnostics.map((module) => ({
+      _id: module.moduleId,
+      page: module.pageName,
+      type: module.type,
+    }));
 
     // Generar token JWT
     const token = jwt.sign(
@@ -209,7 +235,18 @@ router.post('/login', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en login:', error);
+    console.error('Error en login:', {
+      message: error.message,
+      stack: error.stack,
+    });
+
+    if (error?.message?.includes('pageId') || error?.message?.includes('name')) {
+      return res.status(500).json({
+        message: 'Error de configuracion en los modulos',
+        error: 'Se detecto un modulo con pageId inexistente o sin datos de pagina al construir la sesion',
+      });
+    }
+
     res.status(500).json({
       message: 'Error al iniciar sesión',
       error: error.message
@@ -426,6 +463,50 @@ router.post('/changePassword', async (req, res) => {
     res.status(500).json({
       message: 'Error al cambiar contraseña',
       error: error.message
+    });
+  }
+});
+
+
+//Endpoint get by role
+router.get('/by-role/:roleId', async (req, res) => {
+  try {
+    
+    const rawRoleParam = String(req.params.roleId || '').trim();
+    if (!rawRoleParam) {
+      return res.status(400).json({
+        message: 'roleId es requerido'
+      });
+    }
+    console.log(rawRoleParam)
+
+    const roleAssignments = await RoleAssignment.find({ roleId: rawRoleParam })
+      .select('userId')
+      .lean();
+
+    const userIds = [...new Set(roleAssignments.map((assignment) => String(assignment.userId)))];
+
+    if (userIds.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    const users = await Staff.find({ _id: { $in: userIds }, status: true })
+      .select('_id username email profile')
+      .sort({ 'profile.names': 1, 'profile.lastNames': 1 })
+      .lean();
+
+    return res.status(200).json(
+      users.map((user) => ({
+        _id: user._id,
+        label: `${user.profile?.names || ''} ${user.profile?.lastNames || ''}`.trim() || user.username,
+        subtitle: user.email || user.username,
+      }))
+    );
+  } catch (error) {
+    console.error('Error en by-role:', error);
+    return res.status(500).json({
+      message: 'Error al obtener usuarios por rol',
+      error: error.message,
     });
   }
 });

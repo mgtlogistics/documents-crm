@@ -1,73 +1,116 @@
-import express from "express"
-import { createFinancialReportPdf } from "../documents/createReport.js";
-import Store from "../models/Store.js";
+import express from "express";
+import Document from "../models/Document.js";
+import DocumentStructure from "../models/DocumentStructure.js";
 
-import dayjs from "dayjs"
+const router = express.Router();
 
-const router = express.Router()
-
-router.get('/', (req, res) => {
-  res.json({ message: 'Documents API is working' })
-})
-
-router.get('/financial-report/download', async (req, res) => {
+// ─── GET ALL ─────────────────────────────────────────────────────────────────
+// GET /api/documents
+router.get("/", async (req, res) => {
   try {
-    const storeId = req.query.storeId || req.headers['x-store-id'];
-    const startDate = req.query.inicio || req.query.startDate;
-    const endDate = req.query.fin || req.query.endDate;
-    const brandId = req.query.brandId || req.headers['x-brand-id'];
-
-    if (!storeId) {
-      return res.status(400).json({ message: 'storeId es requerido' });
-    }
-
-    if (!startDate || !endDate) {
-      return res.status(400).json({ message: 'inicio y fin son requeridos' });
-    }
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      return res.status(400).json({ message: 'inicio o fin tienen un formato de fecha invalido' });
-    }
-
-    if (start > end) {
-      return res.status(400).json({ message: 'inicio no puede ser mayor que fin' });
-    }
-
-    const store = await Store.findById(storeId);
-    if (!store) {
-      return res.status(404).json({ message: 'Tienda no encontrada' });
-    }
-
-    if (brandId && store.brandId !== brandId) {
-      return res.status(400).json({ message: 'La tienda no pertenece a la marca activa' });
-    }
-
-    const pdfBuffer = await createFinancialReportPdf({
-      storeId,
-      startDate: dayjs(startDate).startOf('day').toDate(),
-      endDate: dayjs(endDate).endOf('day').toDate(),
-      brandId,
-    });
-
-    const safeStoreName = (store.name || 'store')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-
-    const fileName = `reporte-financiero-${safeStoreName || 'sucursal'}-${startDate}-${endDate}.pdf`;
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    return res.status(200).send(pdfBuffer);
+    const documents = await Document.find();
+    return res.status(200).json(documents);
   } catch (error) {
-    console.error('Error al generar reporte financiero:', error);
-    return res.status(500).json({
-      message: 'Error al generar reporte financiero',
-      error: error.message,
-    });
+    return res.status(500).json({ message: "Error al obtener documentos", error: error.message });
   }
 });
 
-export const routeConfig = { path: "/v1/documents", router }
+// ─── GET BY ID (document + structure) ────────────────────────────────────────
+// GET /api/documents/:id
+router.get("/:id", async (req, res) => {
+  try {
+    const document = await Document.findById(req.params.id)
+      .populate("documentStructureId")
+      .lean();
+    if (!document) return res.status(404).json({ message: "Documento no encontrado" });
+
+    const structure = await DocumentStructure.findById(document.documentStructureId);
+    return res.status(200).json({ document, structure });
+  } catch (error) {
+    return res.status(500).json({ message: "Error al obtener el documento", error: error.message });
+  }
+});
+
+// ─── CREATE (document + structure together) ───────────────────────────────────
+// POST /api/documents
+// Body: { key, name, downloadEndpoint, status?, fields: [...] }
+router.post("/", async (req, res) => {
+  try {
+    const { key, name, downloadEndpoint, status, fields = [] } = req.body;
+
+    const structure = await DocumentStructure.create({ fields });
+
+    const document = await Document.create({
+      documentStructureId: structure._id,
+      key,
+      name,
+      downloadEndpoint,
+      status,
+    });
+
+    return res.status(201).json({ document, structure });
+  } catch (error) {
+    return res.status(400).json({ message: "Error al crear el documento", error: error.message });
+  }
+});
+
+// ─── UPDATE DOCUMENT (metadata only) ─────────────────────────────────────────
+// PUT /api/documents/:id/document
+// Body: { key?, name?, downloadEndpoint?, status? }
+router.put("/:id/document", async (req, res) => {
+  try {
+    const { key, name, downloadEndpoint, status } = req.body;
+
+    const document = await Document.findByIdAndUpdate(
+      req.params.id,
+      { key, name, downloadEndpoint, status },
+      { new: true, runValidators: true, omitUndefined: true }
+    );
+
+    if (!document) return res.status(404).json({ message: "Documento no encontrado" });
+
+    return res.status(200).json(document);
+  } catch (error) {
+    return res.status(400).json({ message: "Error al actualizar el documento", error: error.message });
+  }
+});
+
+// ─── UPDATE STRUCTURE (fields only) ──────────────────────────────────────────
+// PUT /api/documents/:id/structure
+// Body: { fields: [...] }
+router.put("/:id/structure", async (req, res) => {
+  try {
+    const document = await Document.findById(req.params.id);
+    if (!document) return res.status(404).json({ message: "Documento no encontrado" });
+
+    const structure = await DocumentStructure.findByIdAndUpdate(
+      document.documentStructureId,
+      { fields: req.body.fields },
+      { new: true, runValidators: true }
+    );
+
+    if (!structure) return res.status(404).json({ message: "Estructura no encontrada" });
+
+    return res.status(200).json(structure);
+  } catch (error) {
+    return res.status(400).json({ message: "Error al actualizar la estructura", error: error.message });
+  }
+});
+
+// ─── DELETE (document + structure) ───────────────────────────────────────────
+// DELETE /api/documents/:id
+router.delete("/:id", async (req, res) => {
+  try {
+    const document = await Document.findByIdAndDelete(req.params.id);
+    if (!document) return res.status(404).json({ message: "Documento no encontrado" });
+
+    await DocumentStructure.findByIdAndDelete(document.documentStructureId);
+
+    return res.status(200).json({ message: "Documento y estructura eliminados correctamente" });
+  } catch (error) {
+    return res.status(500).json({ message: "Error al eliminar el documento", error: error.message });
+  }
+});
+
+
+export const routeConfig = { path: "/api/documents", router }

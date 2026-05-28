@@ -20,15 +20,15 @@ const seed = async () => {
       { name: "Pages", path: "/pages" },
       { name: "Roles", path: "/roles" },
 
-      { name: "Brands", path: "/brands" },
-      { name: "Stores", path: "/stores" },
+      // { name: "Brands", path: "/brands" },
+      // { name: "Stores", path: "/stores" },
 
       { name: "Staff", path: "/staff" },
-      { name: "Clients", path: "/clients" },
+      // { name: "Clients", path: "/clients" },
 
-      { name: "Inventory", path: "/inventory" },
-      { name: "Sales", path: "/sales" },
-      { name: "Schedule", path: "/schedule" },
+      // { name: "Inventory", path: "/inventory" },
+      // { name: "Sales", path: "/sales" },
+      // { name: "Schedule", path: "/schedule" },
     ]);
 
     const actions = [

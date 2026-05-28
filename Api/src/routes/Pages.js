@@ -8,7 +8,6 @@ const router = express.Router();
 router.post('/create', async (req, res) => {
   try {
     const { name, path, moduleTypes } = req.body;
-    console.log(req.body)
     // Validar campos requeridos
     if (!name || !path) {
       return res.status(400).json({ 
@@ -27,6 +26,18 @@ router.post('/create', async (req, res) => {
       });
     }
 
+    const validTypes = ['read', 'create', 'delete', 'update'];
+
+    if (moduleTypes && Array.isArray(moduleTypes)) {
+      const invalidType = moduleTypes.find((type) => !validTypes.includes(type));
+
+      if (invalidType) {
+        return res.status(400).json({ 
+          message: `Tipo de módulo inválido: ${invalidType}. Debe ser: read, create, delete o update` 
+        });
+      }
+    }
+
     // Crear la nueva página
     const newPage = new Page({
       name,
@@ -37,35 +48,34 @@ router.post('/create', async (req, res) => {
     await newPage.save();
 
     // Crear módulos si se proporcionaron
-    if (moduleTypes && Array.isArray(moduleTypes) && moduleTypes.length > 0) {
-      const validTypes = ['read', 'write', 'delete', 'update'];
-      const moduleIds = [];
+    const createdModuleIds = [];
 
-      for (const type of moduleTypes) {
-        if (!validTypes.includes(type)) {
-          await Page.findByIdAndDelete(newPage._id);
-          return res.status(400).json({ 
-            message: `Tipo de módulo inválido: ${type}. Debe ser: read, write, delete o update` 
+    if (moduleTypes && Array.isArray(moduleTypes) && moduleTypes.length > 0) {
+      try {
+        for (const type of moduleTypes) {
+          const newModule = new Module({
+            pageId: newPage._id,
+            type: type
           });
+
+          await newModule.save();
+          createdModuleIds.push(newModule._id);
         }
 
-        const newModule = new Module({
-          pageId: newPage._id,
-          type: type
-        });
+        // Actualizar la página con los IDs de los módulos
+        newPage.modules = createdModuleIds;
+        await newPage.save();
+      } catch (moduleError) {
+        await Module.deleteMany({ _id: { $in: createdModuleIds } });
+        await Page.findByIdAndDelete(newPage._id);
 
-        await newModule.save();
-        moduleIds.push(newModule._id);
+        throw moduleError;
       }
-
-      // Actualizar la página con los IDs de los módulos
-      newPage.modules = moduleIds;
-      await newPage.save();
     }
 
     // Obtener la página con módulos poblados
     const pageWithModules = await Page.findById(newPage._id);
-    const modules = await Module.find({ _id: { $in: pageWithModules.modules } });
+    const modules = await Module.find({ pageId: newPage._id });
 
     res.status(201).json({ 
       message: 'Página creada exitosamente',
@@ -219,7 +229,7 @@ router.delete('/delete/:id', async (req, res) => {
     }
 
     // Eliminar todos los módulos asociados
-    await Module.deleteMany({ _id: { $in: page.modules } });
+    await Module.deleteMany({ pageId: page._id });
 
     // Eliminar la página
     await Page.findByIdAndDelete(id);

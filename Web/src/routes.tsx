@@ -14,6 +14,8 @@ import ProtectedModule from "./components/global/ProtectedModule";
 import Stores from "./routes/stores/page";
 import Staff from "./routes/staff/page";
 import Clients from "./routes/clients/page";
+import Home from "./routes/Home";
+import DocumentRequests from "./routes/requests/page";
 
 const router = createBrowserRouter([
   {
@@ -75,9 +77,17 @@ const router = createBrowserRouter([
         </ProtectedModule>,
       },
       {
-        path: "pruebas",
-        element: <Pruebas />,
+        path: "documents",
+        element:<ProtectedModule page="Documents" type="read" method="block" >
+          <Home />
+        </ProtectedModule>,
       },
+      {
+        path:"requests",
+        element:<ProtectedModule page="Requests" type="read" method="block" >
+          <DocumentRequests />
+        </ProtectedModule>,
+      }
     ],
   },
 ]);

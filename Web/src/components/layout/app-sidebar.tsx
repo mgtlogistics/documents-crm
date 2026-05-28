@@ -3,11 +3,11 @@
 import * as React from "react"
 import {
   FileChartColumn,
-  ShoppingCart,
+  // ShoppingCart,
   SquareTerminal,
   User,
   CalendarDays,
-  Users,
+  // Users,
 
 
 } from "lucide-react"
@@ -37,47 +37,64 @@ const data = {
         {
           title: "Inicio",
           url: "/",
+          moduleName: "Dashboard",
         },
         {
           title: "Roles",
           url: "/roles",
+          moduleName: "Roles",
         },
         {
           title: "Páginas",
           url: "/pages",
+          moduleName: "Pages",
         },
-        {
-          title: "Tiendas",
-          url: "/stores",
-        },
+        // {
+        //   title: "Tiendas",
+        //   url: "/stores",
+        // },
       ],
     },
   ],
   projects: [
     {
-      name: "Staff",
+      name: "Usuarios",
       url: "/staff",
       icon: User,
-    }, {
-      name: "Clientes",
-      url: "/clients",
-      icon: Users,
+      moduleName: "Staff",
     },
     {
-      name: "Inventario",
-      url: "/inventory",
+      name: "Documentos",
+      url: "/documents",
       icon: FileChartColumn,
+      moduleName: "Documents",
     },
     {
-      name: "Ventas y Facturación",
-      url: "/sales",
-      icon: ShoppingCart,
-    },
-    {
-      name: "Horarios",
-      url: "/schedule",
+      name: "Solicitudes",
+      url: "/requests",
       icon: CalendarDays,
-    },
+      moduleName: "Requests",
+    }
+    // {
+    //   name: "Clientes",
+    //   url: "/clients",
+    //   icon: Users,
+    // },
+    // {
+    //   name: "Inventario",
+    //   url: "/inventory",
+    //   icon: FileChartColumn,
+    // },
+    // {
+    //   name: "Ventas y Facturación",
+    //   url: "/sales",
+    //   icon: ShoppingCart,
+    // },
+    // {
+    //   name: "Horarios",
+    //   url: "/schedule",
+    //   icon: CalendarDays,
+    // },
   ],
 }
 
