@@ -56,20 +56,32 @@ router.post("/", async (req, res) => {
 
 // ─── UPDATE DOCUMENT (metadata only) ─────────────────────────────────────────
 // PUT /api/documents/:id/document
-// Body: { key?, name?, downloadEndpoint?, status? }
+// Body: { key?, name?, downloadEndpoint?, status?, userType?, fields?: [...] }
 router.put("/:id/document", async (req, res) => {
   try {
-    const { key, name, downloadEndpoint, status } = req.body;
+    const { key, name, downloadEndpoint, status, userType, fields } = req.body;
 
     const document = await Document.findByIdAndUpdate(
       req.params.id,
-      { key, name, downloadEndpoint, status },
+      { key, name, downloadEndpoint, status, userType },
       { new: true, runValidators: true, omitUndefined: true }
     );
 
     if (!document) return res.status(404).json({ message: "Documento no encontrado" });
 
-    return res.status(200).json(document);
+    let structure = null;
+
+    if (Array.isArray(fields)) {
+      structure = await DocumentStructure.findByIdAndUpdate(
+        document.documentStructureId,
+        { fields },
+        { new: true, runValidators: true, omitUndefined: true }
+      );
+
+      if (!structure) return res.status(404).json({ message: "Estructura no encontrada" });
+    }
+
+    return res.status(200).json({ document, structure });
   } catch (error) {
     return res.status(400).json({ message: "Error al actualizar el documento", error: error.message });
   }

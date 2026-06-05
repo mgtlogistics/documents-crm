@@ -12,6 +12,13 @@ export interface User {
   username: string;
   email: string;
   profile: Profile;
+  isProfileComplete?: boolean;
+}
+
+export interface UserRole {
+  id: string | null;
+  name: string | null;
+  type: 'person' | 'company' | null;
 }
 
 export interface Store {
@@ -30,12 +37,13 @@ export interface Access {
 interface AuthState {
   token: string | null;
   user: User | null;
+  role: UserRole | null;
   access: Access | null;
   activeStore: Store | null;
   isAuthenticated: boolean;
 
   // Actions
-  setAuth: (token: string, user: User, access: Access) => void;
+  setAuth: (token: string, user: User, access: Access, role?: UserRole | null) => void;
   clearAuth: () => void;
   updateUser: (user: Partial<User>) => void;
   setActiveStore: (storeId: string) => void;
@@ -45,6 +53,9 @@ interface AuthState {
   getProfile: () => Profile | null;
   getUsername: () => string | null;
   getEmail: () => string | null;
+  getRole: () => UserRole | null;
+  getRoleType: () => 'person' | 'company' | null;
+  getModules: () => string[];
   
   // Access Getters
   getBrandId: () => string | null;
@@ -61,14 +72,16 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       token: null,
       user: null,
+      role: null,
       access: null,
       activeStore: null,
       isAuthenticated: false,
 
-      setAuth: (token, user, access) =>
+      setAuth: (token, user, access, role = null) =>
         set({
           token,
           user,
+          role,
           access,
           activeStore: access.stores[0] ?? null,
           isAuthenticated: true,
@@ -78,6 +91,7 @@ export const useAuthStore = create<AuthState>()(
         set({
           token: null,
           user: null,
+          role: null,
           access: null,
           activeStore: null,
           isAuthenticated: false,
@@ -120,6 +134,21 @@ export const useAuthStore = create<AuthState>()(
       getEmail: () => {
         const state = get();
         return state.user?.email ?? null;
+      },
+
+      getRole: () => {
+        const state = get();
+        return state.role ?? null;
+      },
+
+      getRoleType: () => {
+        const state = get();
+        return state.role?.type ?? null;
+      },
+
+      getModules: () => {
+        const state = get();
+        return state.access?.permissions ?? [];
       },
 
       // Access Getters

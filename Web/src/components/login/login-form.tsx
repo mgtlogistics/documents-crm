@@ -9,7 +9,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { useAuthStore, type Access, type User } from "@/store/authStore"
+import { useAuthStore, type Access, type User, type UserRole } from "@/store/authStore"
 import { useModulesStore } from "@/store/modulesStore"
 import { API_ENDPOINTS } from "@/config/api"
 
@@ -18,6 +18,7 @@ interface LoginResponse {
   token: string
   user: User
   access: Access
+  role?: UserRole
   modules?: Array<{
     _id: string
     page: string
@@ -46,10 +47,10 @@ export function LoginForm({
         password,
       })
 
-      const { token, user, access, modules, message } = response.data
+      const { token, user, access, role, modules, message } = response.data
 
       if (token && user && access) {
-        setAuth(token, user, access)
+        setAuth(token, user, access, role ?? null)
 
         if (modules) {
           setModules(modules)

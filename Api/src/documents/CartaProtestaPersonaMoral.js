@@ -1,7 +1,8 @@
 import PDFDocument from 'pdfkit'
+import dayjs from 'dayjs'
 import createStylizedParagraph from './createStylizedParagraph.js'
 
-export function generarCartaProtestaPersonaMoral() {
+export function generarCartaProtestaPersonaMoral(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const pageBottom = () => doc.page.height - doc.page.margins.bottom
   const contentLeft = doc.page.margins.left
@@ -11,12 +12,6 @@ export function generarCartaProtestaPersonaMoral() {
     if (doc.y + requiredHeight > pageBottom()) {
       doc.addPage()
     }
-  }
-
-  const drawLetterhead = () => {
-    doc.font('Helvetica').fontSize(12).text('Membretado', 0, 44, { align: 'center' })
-    doc.x = contentLeft
-    doc.y = 96
   }
 
   const drawLine = (x, y, width) => {
@@ -56,8 +51,8 @@ export function generarCartaProtestaPersonaMoral() {
     })
   }
 
-  doc.on('pageAdded', drawLetterhead)
-  drawLetterhead()
+  doc.x = contentLeft
+  doc.y = doc.page.margins.top
 
   // --- CORRECCIÓN HEADER ---
   // Seteamos las coordenadas una sola vez y dejamos que el flujo avance de forma natural
@@ -72,11 +67,12 @@ export function generarCartaProtestaPersonaMoral() {
 
   // Reseteamos al margen izquierdo para la fecha
   doc.x = contentLeft;
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(12.5)
-    .text('[Lugar y fecha]', { align: 'right', width: contentWidth })
-    .moveDown(1.4)
+
+   doc
+     .font('Helvetica-Bold')
+     .fontSize(10.5)
+     .text(` ${data.city}, ${data.state}, ${data.country}  | ${dayjs().format('DD/MMMM/YYYY')}`, { align: 'right' })
+     .moveDown(0.8)
 
   // --- CORRECCIÓN "A QUIEN CORRESPONDA" ---
   // Forzamos que regrese al extremo izquierdo de la página
@@ -94,32 +90,35 @@ export function generarCartaProtestaPersonaMoral() {
 
   // Párrafo Inicial Estilizado
   doc.x = contentLeft
+  const address = data?.user?.address || {}
+  const domicilioFiscal = `${address.street || ''} ${address.exteriorNumber || ''} ${address.interiorNumber || ''} ${address.neighborhood || ''} ${address.city || ''} ${address.state || ''} ${address.country || ''} ${address.zipCode || ''}, C.P. ${address.postalCode || ''}`
+
   createStylizedParagraph(
     doc,
     [
       { text: 'El que suscribe ' },
-      { text: '[NOMBRE COMPLETO DEL USUARIO]', isBold: true },
+      { text: data.user.company.legalRepresentativeName, isBold: true },
       { text: ', en mi carácter de ' },
-      { text: '[representante legal / persona física]', isBold: true },
+      { text: 'representante legal', isBold: true },
       { text: ' de ' },
-      { text: '[NOMBRE O RAZÓN SOCIAL DEL CLIENTE]', isBold: true },
+      { text: data.user.company.socialReason, isBold: true },
       { text: ', con ' },
-      { text: 'RFC [RFC]', isBold: true },
+      { text: `RFC ${data.user.company.rfc}`, isBold: true },
       { text: ', y con domicilio fiscal en ' },
-      { text: '[DOMICILIO FISCAL COMPLETO]', isBold: true },
+      { text: domicilioFiscal, isBold: true },
       { text: ', acreditando mi personalidad mediante ' },
-      { text: 'Poder Notarial', isBold: true },
+      { text: `Poder Notarial ${data.user.company.powerOfAttorneyNumber}`, isBold: true },
       { text: ' otorgado mediante ' },
-      { text: 'escritura pública número ________, volumen ________,', isBold: true },
-      { text: ' de fecha ________________, pasada ante la fe del ' },
-      { text: 'Notario Público número ________,', isBold: true },
-      { text: ' Lic. ________________________, de la Ciudad de ________________________, con fundamento en lo dispuesto por la ' },
+      { text: `escritura pública número ${data.user.company.scripture}, volumen ${data.user.company.powerOfAttorneyVolume},`, isBold: true },
+      { text: ` de fecha ${dayjs(data.user.company.powerOfAttorneyDate).format('DD/MM/YYYY')}, pasada ante la fe del `, isBold: true },
+      { text: `Notario Público número ${data.user.company.notaryNumber},`, isBold: true },
+      { text: ` Lic. ${data.user.company.notaryName}, de la Ciudad de ${data.user.company.notaryCity}, ${data.user.company.notaryState}, con fundamento en lo dispuesto por la ` },
       { text: 'regla 1.4.14, fracción VII de las Reglas Generales de Comercio Exterior para 2026, manifiesto bajo protesta de decir verdad en nombre de mi representada', isBold: true },
       { text: ' lo siguiente:' }
     ],
     { fontSize: 12.5, align: 'justify', width: contentWidth, left: contentLeft, top: doc.y }
   )
-  
+
   doc.x = contentLeft
   doc.moveDown(0.95)
 
@@ -164,7 +163,7 @@ export function generarCartaProtestaPersonaMoral() {
     .moveDown(0.35)
 
   drawRomanAssetsLines()
-  
+
   // Reseteamos X tras las líneas romanas
   doc.x = contentLeft
   doc.moveDown(0.5)
@@ -192,7 +191,7 @@ export function generarCartaProtestaPersonaMoral() {
     ],
     { fontSize: 12.5, align: 'justify', width: contentWidth, left: contentLeft, top: doc.y }
   )
-  
+
   doc.x = contentLeft
   doc.moveDown(0.9)
 
@@ -207,7 +206,7 @@ export function generarCartaProtestaPersonaMoral() {
     ],
     { fontSize: 12.5, align: 'justify', width: contentWidth, left: contentLeft, top: doc.y }
   )
-  
+
   doc.x = contentLeft
   doc.moveDown(1.5)
 
@@ -227,13 +226,13 @@ export function generarCartaProtestaPersonaMoral() {
   doc
     .font('Helvetica-Bold')
     .fontSize(15)
-    .text('[NOMBRE O RAZÓN SOCIAL DEL CLIENTE]', { align: 'center', width: contentWidth })
+    .text(data.user.company.socialReason, { align: 'center', width: contentWidth })
     .moveDown(2.8)
 
   doc.font('Helvetica').text('_________________________________', { align: 'center', width: contentWidth }).moveDown(0.7)
 
-  doc.font('Helvetica-Bold').fontSize(12.5).text('Nombre completo del representante Legal', { align: 'center', width: contentWidth }).moveDown(0.35)
-  doc.font('Helvetica-Bold').fontSize(12.5).text('RFC', { align: 'center', width: contentWidth }).moveDown(0.35)
+  doc.font('Helvetica-Bold').fontSize(12.5).text(data.user.company.legalRepresentativeName, { align: 'center', width: contentWidth }).moveDown(0.35)
+  doc.font('Helvetica-Bold').fontSize(12.5).text(`RFC ${data.user.company.rfc}`, { align: 'center', width: contentWidth }).moveDown(0.35)
   doc.font('Helvetica-Bold').fontSize(12.5).text('Representante Legal', { align: 'center', width: contentWidth })
 
   doc.end()

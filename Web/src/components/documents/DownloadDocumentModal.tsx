@@ -20,9 +20,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { useAuthStore } from "@/store/authStore"
 import api, { postDownloadDocumentFromEndpoint } from "@/utils/api"
 
 type FieldType = "text" | "number" | "date" | "select" | "checkbox" | "textarea"
+type ApiUserRole = "client" | "company"
+
+const CLIENT_ROLE_ID = "6a156a603a5d7ea978fbb13c"
+const COMPANY_ROLE_ID = "6a156a6d3a5d7ea978fbb13d"
 
 interface FieldOption {
 	label: string
@@ -50,6 +55,7 @@ interface DocumentDetails {
 	key: string
 	name: string
 	downloadEndpoint: string
+	userType: ApiUserRole
 	documentStructureId?: {
 		fields?: DocumentField[]
 	}
@@ -69,6 +75,12 @@ interface DownloadDocumentModalProps {
 	trigger?: React.ReactNode
 	open?: boolean
 	onOpenChange?: (open: boolean) => void
+}
+
+interface RoleUser {
+	_id: string
+	label: string
+	subtitle?: string
 }
 
 function getInitialValue(field: DocumentField): string | boolean {
@@ -131,12 +143,18 @@ export default function DownloadDocumentModal({
 }: DownloadDocumentModalProps) {
 	const [internalOpen, setInternalOpen] = useState(false)
 	const [loading, setLoading] = useState(false)
+	const [loadingUsers, setLoadingUsers] = useState(false)
 	const [submitting, setSubmitting] = useState(false)
 	const [documentDetails, setDocumentDetails] = useState<DocumentDetails | null>(null)
 	const [fields, setFields] = useState<DocumentField[]>([])
 	const [values, setValues] = useState<Record<string, string | boolean>>({})
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 	const [requestError, setRequestError] = useState<string | null>(null)
+	const [users, setUsers] = useState<RoleUser[]>([])
+	const [selectedUserId, setSelectedUserId] = useState("")
+	const currentUserId = useAuthStore((state) => state.getUserId())
+	const currentRole = useAuthStore((state) => state.getRole())
+	const isSuperAdmin = (currentRole?.name ?? "").trim().toLowerCase() === "super admin"
 
 	const isControlled = controlledOpen !== undefined
 	const open = isControlled ? controlledOpen : internalOpen
@@ -145,15 +163,33 @@ export default function DownloadDocumentModal({
 		if (!isControlled) {
 			setInternalOpen(nextOpen)
 		}
+
+		if (!nextOpen) {
+			resetModalState()
+		}
+
 		onOpenChange?.(nextOpen)
 	}
 
 	const hasFields = fields.length > 0
+	const targetUserRoleId = documentDetails?.userType === "company" ? COMPANY_ROLE_ID : CLIENT_ROLE_ID
 
 	const title = useMemo(() => {
 		if (!documentDetails) return "Descargar documento"
 		return `Descargar ${documentDetails.name}`
 	}, [documentDetails])
+
+	const resetModalState = () => {
+		setLoading(false)
+		setSubmitting(false)
+		setDocumentDetails(null)
+		setFields([])
+		setValues({})
+		setFieldErrors({})
+		setRequestError(null)
+		setUsers([])
+		setSelectedUserId("")
+	}
 
 	useEffect(() => {
 		if (!open) return
@@ -190,6 +226,37 @@ export default function DownloadDocumentModal({
 
 		load()
 	}, [documentId, open])
+
+	useEffect(() => {
+		if (!open) return
+
+		if (!isSuperAdmin) {
+			setUsers([])
+			setSelectedUserId(currentUserId ?? "")
+			return
+		}
+
+		if (!documentDetails?.userType) return
+
+		const loadUsers = async () => {
+			setSelectedUserId("")
+			setLoadingUsers(true)
+			try {
+				const { data } = await api.get<RoleUser[]>(`/v1/staff/by-role/${targetUserRoleId}`)
+				setUsers(data || [])
+			} catch (err: unknown) {
+				const message =
+					(err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+					"No fue posible cargar los usuarios del rol seleccionado"
+
+				toast.error(message)
+			} finally {
+				setLoadingUsers(false)
+			}
+		}
+
+		loadUsers()
+	}, [currentUserId, documentDetails?.userType, isSuperAdmin, open, targetUserRoleId])
 
 	const setFieldValue = (fieldKey: string, value: string | boolean) => {
 		setValues((prev) => ({ ...prev, [fieldKey]: value }))
@@ -249,6 +316,13 @@ export default function DownloadDocumentModal({
 			return acc
 		}, {})
 
+		if (!selectedUserId) {
+			toast.error("Debes seleccionar un usuario")
+			return
+		}
+
+		payload.userId = selectedUserId
+
 		setSubmitting(true)
 		setRequestError(null)
 
@@ -307,6 +381,30 @@ export default function DownloadDocumentModal({
 					<p className="text-sm text-destructive">{requestError}</p>
 				) : (
 					<form className="space-y-4" onSubmit={handleSubmit}>
+						{isSuperAdmin ? (
+							<div className="grid gap-2">
+								<Label>Usuario</Label>
+								<Select
+									value={selectedUserId}
+									onValueChange={setSelectedUserId}
+									disabled={!documentDetails || loadingUsers || submitting}
+								>
+									<SelectTrigger>
+										<SelectValue
+											placeholder={loadingUsers ? "Cargando usuarios..." : "Selecciona un usuario"}
+										/>
+									</SelectTrigger>
+									<SelectContent>
+										{users.map((user) => (
+											<SelectItem key={user._id} value={user._id}>
+												{user.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+						) : null}
+
 						{hasFields ? (
 							fields.map((field) => {
 								const value = values[field.fieldKey]
@@ -407,7 +505,10 @@ export default function DownloadDocumentModal({
 							<Button
 								type="button"
 								variant="outline"
-								onClick={() => handleOpenChange(false)}
+								onClick={() => {
+									handleOpenChange(false)
+									resetModalState()
+								}}
 								disabled={submitting}
 							>
 								Cancelar

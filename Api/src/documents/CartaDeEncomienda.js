@@ -1,7 +1,8 @@
 import PDFDocument from 'pdfkit'
+import dayjs from 'dayjs'
 import createStylizedParagraph from './createStylizedParagraph.js'
 
-export function generarCartaDeEncomienda() {
+export function generarCartaDeEncomienda(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const AUTOCOMP = '(autocompletado)'
 
@@ -24,10 +25,13 @@ export function generarCartaDeEncomienda() {
   doc
     .font('Helvetica')
     .fontSize(10.5)
-    .text('CIUDAD', { align: 'right' })
-    .text('ESTADO', { align: 'right' })
-    .text('PAÍS', { align: 'right' })
-    .text('FECHA', { align: 'right' })
+  doc
+    .font('Helvetica')
+    .fontSize(10.5)
+    .text(data?.country || 'No llenado', { align: 'right' })
+    .text(data?.state || 'No llenado', { align: 'right' })
+    .text(data?.city || 'No llenado', { align: 'right' })
+    .text(dayjs().format('DD/MM/YYYY') || 'No llenado', { align: 'right' })
     .moveDown(0.8)
 
 
@@ -46,7 +50,7 @@ export function generarCartaDeEncomienda() {
     .font('Helvetica')
     .fontSize(9.5)
     .text(
-      `En mi carácter de Representante Legal de la empresa ${AUTOCOMP}, con domicilio fiscal en ${AUTOCOMP}, número exterior ${AUTOCOMP}, número interior ${AUTOCOMP}, colonia ${AUTOCOMP}, municipio ${AUTOCOMP}, localidad ${AUTOCOMP}, entidad federativa ${AUTOCOMP}, México, Código Postal ${AUTOCOMP}, con Registro Federal de Contribuyentes ${AUTOCOMP}, personalidad que acredito conforme al Poder Notarial número ${AUTOCOMP}, volumen ${AUTOCOMP}, otorgado ante la fe del Notario Público número ${AUTOCOMP}, Lic. ${AUTOCOMP}, manifiesto lo siguiente:`,
+      `En mi carácter de Representante Legal de la empresa ${data.user.company.socialReason}, con domicilio fiscal en ${AUTOCOMP}, número exterior ${data.user.address.exteriorNumber}, número interior ${data.user.address.interiorNumber}, colonia ${data.user.address.neighborhood}, municipio ${data.user.address.city}, localidad ${data.user.address.locality}, entidad federativa ${data.user.address.state}, México, Código Postal ${data.user.address.postalCode}, con Registro Federal de Contribuyentes ${data.user.company.rfc}, personalidad que acredito conforme al Poder Notarial número ${data.user.company.powerOfAttorneyNumber}, volumen ${data.user.company.powerOfAttorneyVolume}, otorgado ante la fe del Notario Público número ${data.user.company.notaryNumber}, Lic. ${data.user.company.notaryName}, manifiesto lo siguiente:`,
       { align: 'justify' }
     )
     .moveDown(0.8)
@@ -215,19 +219,19 @@ export function generarCartaDeEncomienda() {
   doc
     .font('Helvetica')
     .fontSize(10)
-    .text('(NOMBRE DEL REPRESENTANTE LEGAL)', { align: 'center' })
+    .text(data.user.company.legalRepresentativeName, { align: 'center' })
     .moveDown(0.3)
 
   doc
-    .text('(RFC DEL REPRESENTANTE LEGAL)', { align: 'center' })
+    .text(data.legalRepresentativeRFC  , { align: 'center' })
     .moveDown(0.3)
 
   doc
-    .text('(REPRESENTANTE LEGAL DE LA EMPRESA)', { align: 'center' })
+    .text('REPRESENTANTE LEGAL DE LA EMPRESA', { align: 'center' })
     .moveDown(0.3)
-    .text('(NOMBRE DE LA EMPRESA)', { align: 'center' })
+    .text(data.user.company.socialReason, { align: 'center' })
     .moveDown(0.3)
-    .text('(RFC DE LA EMPRESA)', { align: 'center' })
+    .text(data.user.company.rfc, { align: 'center' })
 
   doc.end()
   return doc

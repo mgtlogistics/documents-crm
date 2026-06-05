@@ -3,6 +3,7 @@ import RoleAssignment from "../models/RoleAssignment.js";
 import Role from "../models/Role.js";
 import Store from "../models/Store.js";
 import Module from "../models/Module.js";
+import { uploadLogo } from "../utils/public.utils.js";
 
 import express from "express";
 import bcrypt from "bcrypt";
@@ -10,15 +11,133 @@ import jwt from "jsonwebtoken";
 
 const router = express.Router();
 
+const REQUIRED_ADDRESS_FIELDS = [
+  'street',
+  'exteriorNumber',
+  'neighborhood',
+  'locality',
+  'postalCode',
+  'city',
+  'state',
+  'country',
+];
+
+const REQUIRED_PERSON_FIELDS = ['names', 'surnames', 'rfc'];
+
+const REQUIRED_COMPANY_FIELDS = [
+  'socialReason',
+  'rfc',
+  'legalRepresentativeName',
+  'legalRepresentativeRfc',
+  'legalRepresentativePosition',
+  'formFillerName',
+  'scripture',
+  'notaryName',
+  'notaryNumber',
+  'notaryCity',
+  'notaryState',
+  'powerOfAttorneyNumber',
+  'powerOfAttorneyVolume',
+  'powerOfAttorneyDate',
+];
+
+const normalizeStringFields = (obj = {}) => {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+  );
+};
+
+const getMissingFields = (obj = {}, requiredFields = []) => {
+  return requiredFields.filter((field) => {
+    const value = obj[field];
+
+    if (typeof value === 'string') {
+      return value.trim().length === 0;
+    }
+
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime());
+    }
+
+    return value === null || value === undefined;
+  });
+};
+
+const inferPersonTypeByRoleNames = (roleNames = []) => {
+  const normalizedNames = roleNames
+    .filter((name) => typeof name === 'string')
+    .map((name) => name.toLowerCase());
+
+  if (normalizedNames.some((name) => name.includes('moral'))) {
+    return 'company';
+  }
+
+  if (normalizedNames.some((name) => name.includes('fisica') || name.includes('física'))) {
+    return 'person';
+  }
+
+  return null;
+};
+
+//Endpoint para subir imagenes aquí
+router.post('/uploadLetterhead', (req, res) => {
+  uploadLogo(req, res, async (error) => {
+    try {
+      if (error) {
+        return res.status(400).json({
+          message: 'No se pudo subir el logo',
+          error: error.message,
+        });
+      }
+
+      const userId = String(req.body?.userId || '').trim();
+
+      if (!userId) {
+        return res.status(400).json({
+          message: 'El userId es requerido para subir el logo'
+        });
+      }
+
+      const existingUser = await Staff.findById(userId);
+
+      if (!existingUser) {
+        return res.status(404).json({
+          message: 'Usuario no encontrado'
+        });
+      }
+
+      if (!req.file?.filename) {
+        return res.status(400).json({
+          message: 'Debes enviar un archivo en el campo logo'
+        });
+      }
+
+      existingUser.letterhead = req.file.filename;
+      await existingUser.save();
+
+      return res.status(200).json({
+        message: 'Logo subido exitosamente',
+        letterhead: existingUser.letterhead,
+      });
+    } catch (uploadError) {
+      console.error('Error en uploadLetterhead:', uploadError);
+      return res.status(500).json({
+        message: 'Error al subir el logo',
+        error: uploadError.message,
+      });
+    }
+  });
+});
+
 // Register - Registrar nuevo usuario
 router.post('/register', async (req, res) => {
   try {
     const { username, email, password, profile, roleId, brandId, scope } = req.body;
 
     // Validar que los campos requeridos estén presentes
-    if (!username || !email || !password || !profile?.names || !profile?.lastNames) {
+    if (!username || !email || !password || !profile?.names) {
       return res.status(400).json({
-        message: 'Username, email, password, nombres y apellidos son requeridos'
+        message: 'Username, email, password y nombres son requeridos'
       });
     }
 
@@ -43,7 +162,7 @@ router.post('/register', async (req, res) => {
       password: hashedPassword,
       profile: {
         names: profile.names,
-        lastNames: profile.lastNames,
+        lastNames: profile.lastNames || '',
         phone: profile.phone || ''
       }
     });
@@ -108,6 +227,127 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// Endpoint para actualizar el perfil del usuario aquí
+router.put('/updateProfile', async (req, res) => {
+  try {
+    const { userId, address, person, company, roleType } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        message: 'El userId es requerido'
+      });
+    }
+
+    const existingUser = await Staff.findById(userId);
+
+    if (!existingUser) {
+      return res.status(404).json({
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    const assignments = await RoleAssignment.find({ userId }).populate('roleId', 'name').lean();
+    const roleNames = assignments
+      .map((assignment) => assignment?.roleId?.name)
+      .filter((name) => typeof name === 'string');
+
+    const inferredTypeFromRole = inferPersonTypeByRoleNames(roleNames);
+    const normalizedRoleType = typeof roleType === 'string' ? roleType.toLowerCase().trim() : '';
+
+    let resolvedUserType = inferredTypeFromRole;
+
+    if (!resolvedUserType && (normalizedRoleType === 'person' || normalizedRoleType === 'company')) {
+      resolvedUserType = normalizedRoleType;
+    }
+
+    if (!resolvedUserType) {
+      return res.status(400).json({
+        message: 'No se pudo determinar el tipo de usuario (Persona Física o Persona Moral) a partir del rol',
+        roleNames,
+      });
+    }
+
+    if (person && company) {
+      return res.status(400).json({
+        message: 'Solo debe enviarse un tipo de perfil: person o company'
+      });
+    }
+
+    const normalizedAddress = normalizeStringFields(address || {});
+    const missingAddressFields = getMissingFields(normalizedAddress, REQUIRED_ADDRESS_FIELDS);
+
+    if (missingAddressFields.length > 0) {
+      return res.status(400).json({
+        message: 'Faltan campos obligatorios en address',
+        missingFields: missingAddressFields.map((field) => `address.${field}`),
+      });
+    }
+
+    const updatePayload = {
+      address: normalizedAddress,
+    };
+
+    const unsetPayload = {};
+
+    if (resolvedUserType === 'person') {
+      const normalizedPerson = normalizeStringFields(person || {});
+      const missingPersonFields = getMissingFields(normalizedPerson, REQUIRED_PERSON_FIELDS);
+
+      if (missingPersonFields.length > 0) {
+        return res.status(400).json({
+          message: 'Faltan campos obligatorios para Persona Física',
+          missingFields: missingPersonFields.map((field) => `person.${field}`),
+        });
+      }
+
+      updatePayload.person = normalizedPerson;
+      unsetPayload.company = 1;
+    }
+
+    if (resolvedUserType === 'company') {
+      const normalizedCompany = normalizeStringFields(company || {});
+      const missingCompanyFields = getMissingFields(normalizedCompany, REQUIRED_COMPANY_FIELDS);
+
+      if (missingCompanyFields.length > 0) {
+        return res.status(400).json({
+          message: 'Faltan campos obligatorios para Persona Moral',
+          missingFields: missingCompanyFields.map((field) => `company.${field}`),
+        });
+      }
+
+      updatePayload.company = normalizedCompany;
+      unsetPayload.person = 1;
+    }
+
+    updatePayload.isProfileComplete = true;
+
+    const updatedUser = await Staff.findByIdAndUpdate(
+      userId,
+      {
+        $set: updatePayload,
+        $unset: unsetPayload,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select('-password');
+
+    return res.status(200).json({
+      message: 'Perfil actualizado exitosamente',
+      user: updatedUser,
+      roleType: resolvedUserType,
+      isProfileComplete: true,
+    });
+  } catch (error) {
+    console.error('Error en updateProfile:', error);
+    return res.status(500).json({
+      message: 'Error al actualizar el perfil del usuario',
+      error: error.message,
+    });
+  }
+});
+
 // Login - Iniciar sesión
 router.post('/login', async (req, res) => {
   try {
@@ -147,6 +387,19 @@ router.post('/login', async (req, res) => {
 
     // 2. Buscar todas sus asignaciones de roles y traer datos de Roles y Tiendas
     const assignments = await RoleAssignment.find({ userId: user._id }).populate('roleId');
+
+    if (!assignments.length) {
+      return res.status(403).json({
+        message: 'El usuario no tiene roles asignados'
+      });
+    }
+
+    const roleNames = assignments
+      .map((assignment) => assignment?.roleId?.name)
+      .filter((name) => typeof name === 'string');
+
+    const roleType = inferPersonTypeByRoleNames(roleNames);
+    const primaryRole = assignments[0]?.roleId;
     // 3. Procesar el "Scope"
     // Determinamos si es nivel Marca (Dueño) o nivel Tienda (Cajero/Gerente)
     const isBrandAdmin = assignments.some(a => a.scope.type === 'brand');
@@ -165,7 +418,7 @@ router.post('/login', async (req, res) => {
 
 
     // 4. Consolidar permisos únicos de todos sus roles
-    const allPermissions = [...new Set(assignments.flatMap(a => a.roleId.permissions))];
+    const allPermissions = [...new Set(assignments.flatMap(a => a.roleId?.permissions || []))];
 
     let modules = await Module.find()
       .populate('pageId', 'name')
@@ -225,6 +478,12 @@ router.post('/login', async (req, res) => {
         username: user.username,
         email: user.email,
         profile: user.profile,
+        isProfileComplete: user.isProfileComplete,
+      },
+      role: {
+        id: primaryRole?._id ?? null,
+        name: primaryRole?.name ?? null,
+        type: roleType,
       },
       access: {
         brandId: brandId,
@@ -284,6 +543,37 @@ router.get('/getAll', async (req, res) => {
     res.status(500).json({
       message: 'Error al obtener usuarios',
       error: error.message
+    });
+  }
+});
+
+router.get('/getById/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        message: 'userId es requerido',
+      });
+    }
+
+    const user = await Staff.findById(userId).select('-password').lean();
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'Usuario no encontrado',
+      });
+    }
+
+    return res.status(200).json({
+      message: 'Usuario obtenido exitosamente',
+      user,
+    });
+  } catch (error) {
+    console.error('Error en getById:', error);
+    return res.status(500).json({
+      message: 'Error al obtener usuario por id',
+      error: error.message,
     });
   }
 });

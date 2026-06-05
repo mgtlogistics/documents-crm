@@ -19,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import NewDocumentModal from "@/components/documents/NewDocumentModal"
+import EditDocumentModal from '@/components/documents/EditDocumentModal'
 import NewDownloadRequest from '@/components/documents/NewDownloadRequest'
 import DownloadDocumentModal from '@/components/documents/DownloadDocumentModal'
 import api from "@/utils/api"
@@ -67,6 +68,7 @@ async function getDocuments(): Promise<DocumentsResponse> {
 
 export default function Home() {
   const [documentsPromise, setDocumentsPromise] = useState<Promise<DocumentsResponse>>(() => getDocuments())
+  const refreshDocuments = () => setDocumentsPromise(getDocuments())
 
   return (
     <div className="space-y-6">
@@ -81,7 +83,7 @@ export default function Home() {
         actions={
           <div className='flex items-center gap-2'>
             <NewDownloadRequest />
-            <NewDocumentModal onSuccess={() => setDocumentsPromise(getDocuments())} />
+            <NewDocumentModal onSuccess={refreshDocuments} />
           </div>
         }
       />
@@ -89,7 +91,7 @@ export default function Home() {
       <Suspense fallback={(
         <p className='text-sm text-muted-foreground'>Cargando documentos...</p>
       )}>
-        <DocumentsContent documentsPromise={documentsPromise} />
+        <DocumentsContent documentsPromise={documentsPromise} onRefresh={refreshDocuments} />
       </Suspense>
     </div>
   )
@@ -97,23 +99,25 @@ export default function Home() {
 
 interface DocumentsContentProps {
   documentsPromise: Promise<DocumentsResponse>
+  onRefresh: () => void
 }
 
-function DocumentsContent({ documentsPromise }: DocumentsContentProps) {
+function DocumentsContent({ documentsPromise, onRefresh }: DocumentsContentProps) {
   const { documents, error } = use(documentsPromise)
 
   if (error) {
     return <p className='text-sm text-destructive'>{error}</p>
   }
 
-  return <DocumentsTable documents={documents} />
+  return <DocumentsTable documents={documents} onRefresh={onRefresh} />
 }
 
 interface DocumentsTableProps {
   documents: DocumentItem[]
+  onRefresh: () => void
 }
 
-function DocumentsTable({ documents }: DocumentsTableProps) {
+function DocumentsTable({ documents, onRefresh }: DocumentsTableProps) {
   const [globalFilter, setGlobalFilter] = useState('')
 
   const columns: ColumnDef<DocumentItem>[] = [
@@ -149,7 +153,7 @@ function DocumentsTable({ documents }: DocumentsTableProps) {
     {
       id: 'actions',
       header: 'Acciones',
-      cell: ({ row }) => <DownloadButton document={row.original} />,
+      cell: ({ row }) => <DownloadButton document={row.original} onRefresh={onRefresh} />,
     },
   ]
 
@@ -244,10 +248,12 @@ function DocumentsTable({ documents }: DocumentsTableProps) {
 
 interface DownloadButtonProps {
   document: DocumentItem
+  onRefresh: () => void
 }
 
-function DownloadButton({ document }: DownloadButtonProps) {
+function DownloadButton({ document, onRefresh }: DownloadButtonProps) {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
   const [isDirectDownloadLoading, setIsDirectDownloadLoading] = useState(false)
 
   const handleDirectDownload = async () => {
@@ -277,6 +283,9 @@ function DownloadButton({ document }: DownloadButtonProps) {
         <DropdownMenuContent align='end' className='w-52'>
           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => setEditModalOpen(true)}>
+            Editar documento
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setDownloadModalOpen(true)}>
             Descargar con formulario
           </DropdownMenuItem>
@@ -295,6 +304,13 @@ function DownloadButton({ document }: DownloadButtonProps) {
         documentId={document._id}
         open={downloadModalOpen}
         onOpenChange={setDownloadModalOpen}
+      />
+
+      <EditDocumentModal
+        documentId={document._id}
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        onSuccess={onRefresh}
       />
     </>
   )

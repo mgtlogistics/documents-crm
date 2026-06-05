@@ -1,7 +1,8 @@
 import PDFDocument from 'pdfkit'
+import dayjs from 'dayjs'
 import createStylizedParagraph from './createStylizedParagraph.js'
 
-export function generarCartaEncomiendaPersonasMorales() {
+export function generarCartaEncomiendaPersonasMorales(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const AUTOCOMP = '(autocompletado)'
 
@@ -18,14 +19,11 @@ export function generarCartaEncomiendaPersonasMorales() {
     .moveDown(0.6)
 
   // HEADER - Right aligned date
-  doc
-    .font('Helvetica')
-    .fontSize(10.5)
-    .text('CIUDAD', { align: 'right' })
-    .text('ESTADO', { align: 'right' })
-    .text('PAÍS', { align: 'right' })
-    .text('FECHA', { align: 'right' })
-    .moveDown(0.8)
+   doc
+     .font('Helvetica-Bold')
+     .fontSize(10.5)
+     .text(` ${data.city}, ${data.state}, ${data.country}  | ${dayjs().format('DD/MMMM/YYYY')}`, { align: 'right' })
+     .moveDown(0.8)
 
   doc
     .font('Helvetica-Bold')
@@ -42,43 +40,43 @@ export function generarCartaEncomiendaPersonasMorales() {
     { text: 'En mi carácter de ' },
     { text: 'Representante Legal', isBold: true },
     { text: ' de la empresa ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.company.socialReason || 'No llenado', isUnderlined: true },
     { text: ', con domicilio fiscal en ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.address.street || 'No llenado', isUnderlined: true },
     { text: ', número exterior ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.address.exteriorNumber || 'No llenado', isUnderlined: true },
     { text: ', número interior ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.address.interiorNumber || 'No llenado', isUnderlined: true },
     { text: ', colonia ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.address.neighborhood || 'No llenado', isUnderlined: true },
     { text: ', municipio ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.address.city || 'No llenado', isUnderlined: true },
     { text: ', localidad ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.address.locality || 'No llenado', isUnderlined: true },
     { text: ', entidad federativa ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.address.state || 'No llenado', isUnderlined: true },
     { text: ', México, Código Postal ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.address.postalCode || 'No llenado', isUnderlined: true },
     { text: ', con Registro Federal de Contribuyentes ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.company.rfc || 'No llenado', isUnderlined: true },
     { text: ', personalidad que acredito conforme al ' },
     { text: 'Poder Notarial número', isBold: true },
     { text: ' ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.company.powerOfAttorneyNumber || 'No llenado', isUnderlined: true },
     { text: ', ' },
     { text: 'volumen', isBold: true },
     { text: ' ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.company.powerOfAttorneyVolume || 'No llenado', isUnderlined: true },
     { text: ', de fecha ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: dayjs(data.user.company.powerOfAttorneyDate).format('DD/MM/YYYY') || 'No llenado', isUnderlined: true },
     { text: ', otorgado ante la fe del ' },
     { text: 'Notario Público número', isBold: true },
     { text: ' ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.company.notaryNumber || 'No llenado', isUnderlined: true },
     { text: ', Lic. ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: data.user.company.notaryName || 'No llenado', isUnderlined: true },
     { text: ', de la Ciudad de ' },
-    { text: '(preguntar)', isUnderlined: true },
+    { text: `${data.user.company.notaryCity || 'No llenado'}, ${data.user.company.notaryState || 'No llenado'}`, isUnderlined: true },
     { text: ', manifiesto lo siguiente:' }
   ];
 
@@ -245,12 +243,12 @@ export function generarCartaEncomiendaPersonasMorales() {
     .text('A T E N T A M E N T E.', { align: 'center' })
 
   doc.font('Helvetica')
-    .text('Nombre de la Empresa', { align: 'center' })
+    .text(data.user.company.socialReason, { align: 'center' })
     .moveDown(2)
 
   doc
     .font('Helvetica')
-    .text('Nombre del representante legal y firma.', { align: 'center' })
+    .text(data.user.company.legalRepresentativeName, { align: 'center' })
 
   doc.end()
   return doc

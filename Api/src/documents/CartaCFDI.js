@@ -1,8 +1,9 @@
 import PDFDocument from 'pdfkit'
 import createStylizedParagraph from './createStylizedParagraph.js'
 import createSignatureBox from './createSignatureBox.js'
+import dayjs from 'dayjs'
 
-export function generarCartaCFDI() {
+export function generarCartaCFDI(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const left = doc.page.margins.left
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right
@@ -11,10 +12,7 @@ export function generarCartaCFDI() {
   doc
     .font('Helvetica-Bold')
     .fontSize(10.5)
-    .text('CIUDAD', { align: 'right' })
-    .text('ESTADO', { align: 'right' })
-    .text('PAÍS', { align: 'right' })
-    .text('FECHA', { align: 'right' })
+    .text(` ${data.city}, ${data.state}, ${data.country}  | ${dayjs().format('DD/MMMM/YYYY')}`, { align: 'right' })
     .moveDown(0.8)
 
   doc
@@ -39,7 +37,7 @@ export function generarCartaCFDI() {
     { text: ' y ' },
     { text: '3.1.39' },
     { text: ' de las ' },
-    { text: 'Reglas Generales de Comercio Exterior' },
+    { text: 'Reglas Generales de Comercio Exterior ' },
     { text: ' para 2026, bajo protesta de decir verdad manifiesto que el (los) CFDI que le fueron otorgados para hacer el despacho de las mercancías consignadas para su exportación en nuestra Carta Encomienda vigente del 01 de enero de 2026 al 31 de diciembre de 2026, se encuentran vigentes, las cuales, de acuerdo con las leyes fiscales, son responsabilidad única de generar y cancelar por parte de mi representada, motivo por el cual en caso de una cancelación de dichos CFDI antes de pagar y modular el pedimento, le será informado directamente a usted como Agente Aduanal.' },
   ]
 
@@ -62,7 +60,7 @@ export function generarCartaCFDI() {
   doc
     .font('Helvetica-Bold')
     .fontSize(10.5)
-    .text('(Nombre empresa)', { align: 'center' })
+    .text(data.user?.company.socialReason || 'No llenado', { align: 'center' })
     .moveDown(1.6)
 
   const leftPos = left
@@ -72,7 +70,7 @@ export function generarCartaCFDI() {
     width: 280,
     height: 100,
     barHeight: 26,
-    text: 'NOMBRE DEL REPRESENTANTE LEGAL Y FIRMA.'
+    text: data.user?.company.legalRepresentativeName || 'No llenado',
   })
 
   doc.end()

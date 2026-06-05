@@ -25,31 +25,21 @@ const userSchema = z.object({
     .min(3, "El usuario debe tener al menos 3 caracteres")
     .max(30, "El usuario no puede exceder 30 caracteres")
     .regex(/^[a-zA-Z0-9_]+$/, "El usuario solo puede contener letras, números y guiones bajos"),
+  password: z.string()
+    .min(6, "La contraseña debe tener al menos 6 caracteres")
+    .max(100, "La contraseña no puede exceder 100 caracteres"),
   email: z.string()
     .min(1, "El email es requerido")
     .email("Email inválido"),
   names: z.string()
     .min(1, "El nombre es requerido")
     .max(50, "El nombre no puede exceder 50 caracteres"),
-  lastNames: z.string()
-    .min(1, "Los apellidos son requeridos")
-    .max(50, "Los apellidos no pueden exceder 50 caracteres"),
   phone: z.string()
     .max(20, "El teléfono no puede exceder 20 caracteres")
     .optional(),
   roleId: z.string()
     .min(1, "Debe seleccionar un rol"),
-  scopeType: z.enum(["brand", "store"]),
-  storeId: z.string().optional()
-}).refine((data) => {
-  // Si scopeType es 'store', storeId es requerido
-  if (data.scopeType === "store") {
-    return data.storeId && data.storeId.length > 0
-  }
-  return true
-}, {
-  message: "Debe seleccionar una tienda cuando el alcance es de tipo tienda",
-  path: ["storeId"]
+  scopeType: z.literal("brand"),
 })
 
 type UserFormValues = z.infer<typeof userSchema>
@@ -58,11 +48,6 @@ interface Role {
   _id: string
   name: string
   permissions: string[]
-}
-
-interface Store {
-  _id: string
-  name: string
 }
 
 interface NewUserModalProps {
@@ -74,9 +59,7 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingRoles, setIsLoadingRoles] = useState(false)
-  const [isLoadingStores, setIsLoadingStores] = useState(false)
   const [roles, setRoles] = useState<Role[]>([])
-  const [stores, setStores] = useState<Store[]>([])
 
   const brandId = useAuthStore((state) => state.getBrandId())
 
@@ -85,24 +68,19 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
     handleSubmit,
     formState: { errors },
     reset,
-    watch,
   } = useForm<UserFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(userSchema) as any,
     defaultValues: {
       username: "",
+      password: "",
       email: "",
       names: "",
-      lastNames: "",
       phone: "",
       roleId: "",
       scopeType: "brand",
-      storeId: "",
     },
   })
-
-  const emailValue = watch("email")
-  const scopeType = watch("scopeType")
 
   // Cargar roles disponibles
   const fetchRoles = useCallback(async () => {
@@ -118,69 +96,31 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
     }
   }, [brandId])
 
-  const fetchStores = useCallback(async () => {
-    setIsLoadingStores(true)
-    try {
-      const response = await axios.get(API_ENDPOINTS.STORES.GET_BY_BRAND(brandId || ""))
-      setStores(response.data.stores || [])
-    } catch (error) {
-      console.error("Error al cargar tiendas:", error)
-      toast.error("Error al cargar las tiendas disponibles")
-    } finally {
-      setIsLoadingStores(false)
-    }
-  }, [brandId])
-
-  // Cargar roles y tiendas cuando se abre el modal
+  // Cargar roles cuando se abre el modal
   useEffect(() => {
     if (open) {
       fetchRoles()
-      fetchStores()
     }
-  }, [open, fetchRoles, fetchStores])
-
-  // Generar contraseña desde email (texto antes del @)
-  const generatePassword = (email: string): string => {
-    const atIndex = email.indexOf('@')
-    if (atIndex > 0) {
-      return email.substring(0, atIndex)
-    }
-    return email
-  }
+  }, [open, fetchRoles])
 
   const onSubmit = async (data: UserFormValues) => {
-    // Validar que si es scope tipo store, se haya seleccionado una tienda
-    if (data.scopeType === "store" && !data.storeId) {
-      toast.error("Debe seleccionar una tienda para el alcance de tipo tienda")
-      return
-    }
-
     setIsLoading(true)
     try {
-      // Generar contraseña automáticamente desde el email
-      const password = generatePassword(data.email)
-
-      // Construir el scope
-      const scope = data.scopeType === "brand" 
-        ? { type: "brand" }
-        : { type: "store", targetId: data.storeId }
-
       const response = await axios.post(API_ENDPOINTS.STAFF.REGISTER, {
         username: data.username,
         email: data.email,
-        password: password,
+        password: data.password,
         profile: {
           names: data.names,
-          lastNames: data.lastNames,
+          lastNames: '',
           phone: data.phone || ''
         },
         roleId: data.roleId,
-        brandId: brandId,  // ← AGREGADO: brandId es esencial para crear RoleAssignment
-        scope: scope       // ← AGREGADO: scope define el alcance del rol
+        brandId: brandId,
+        scope: { type: 'brand' }
       })
 
       toast.success(response.data.message || "Usuario creado exitosamente")
-      toast.info(`Contraseña generada: ${password}`, { autoClose: 10000 })
       
       // Reset form y cerrar modal
       reset()
@@ -207,7 +147,6 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
     if (!newOpen) {
       reset()
       setRoles([])
-      setStores([])
     }
     setOpen(newOpen)
   }
@@ -221,7 +160,7 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
         <DialogHeader>
           <DialogTitle>Crear Nuevo Usuario</DialogTitle>
           <DialogDescription>
-            Completa los datos para crear un nuevo usuario. La contraseña se generará automáticamente desde el email.
+            Completa los datos para crear un nuevo usuario.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -260,10 +199,22 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
               {errors.email && (
                 <p className="text-sm text-red-500">{errors.email.message}</p>
               )}
-              {emailValue && emailValue.includes('@') && (
-                <p className="text-xs text-green-600">
-                  Contraseña generada: {generatePassword(emailValue)}
-                </p>
+            </div>
+
+            {/* Campo Contraseña */}
+            <div className="grid gap-2">
+              <Label htmlFor="password">
+                Contraseña <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="********"
+                {...register("password")}
+                disabled={isLoading}
+              />
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password.message}</p>
               )}
             </div>
 
@@ -280,22 +231,6 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
               />
               {errors.names && (
                 <p className="text-sm text-red-500">{errors.names.message}</p>
-              )}
-            </div>
-
-            {/* Campo Apellidos */}
-            <div className="grid gap-2">
-              <Label htmlFor="lastNames">
-                Apellidos <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="lastNames"
-                placeholder="Pérez García"
-                {...register("lastNames")}
-                disabled={isLoading}
-              />
-              {errors.lastNames && (
-                <p className="text-sm text-red-500">{errors.lastNames.message}</p>
               )}
             </div>
 
@@ -343,56 +278,22 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
             </div>
 
             {/* Select Alcance (Scope Type) */}
-            <div className="grid gap-2">
+            {/* <div className="grid gap-2">
               <Label htmlFor="scopeType">
                 Alcance del Rol <span className="text-red-500">*</span>
               </Label>
               <select
                 id="scopeType"
                 {...register("scopeType")}
-                disabled={isLoading}
+                disabled
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="brand">Toda la marca</option>
-                <option value="store">Tienda específica</option>
               </select>
               <p className="text-xs text-muted-foreground">
-                {scopeType === "brand" 
-                  ? "El usuario tendrá acceso a todas las tiendas de la marca" 
-                  : "El usuario solo tendrá acceso a la tienda seleccionada"}
+                El usuario tendrá acceso a todas las tiendas de la marca
               </p>
-            </div>
-
-            {/* Select Tienda (solo si scope es 'store') */}
-            {scopeType === "store" && (
-              <div className="grid gap-2">
-                <Label htmlFor="storeId">
-                  Tienda <span className="text-red-500">*</span>
-                </Label>
-                {isLoadingStores ? (
-                  <div className="text-sm text-muted-foreground">Cargando tiendas...</div>
-                ) : (
-                  <>
-                    <select
-                      id="storeId"
-                      {...register("storeId")}
-                      disabled={isLoading}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <option value="">Seleccionar tienda</option>
-                      {stores.map((store) => (
-                        <option key={store._id} value={store._id}>
-                          {store.name}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.storeId && (
-                      <p className="text-sm text-red-500">{errors.storeId.message}</p>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
+            </div> */}
           </div>
 
           <DialogFooter>
@@ -404,7 +305,7 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading || isLoadingRoles || isLoadingStores}>
+            <Button type="submit" disabled={isLoading || isLoadingRoles}>
               {isLoading ? "Creando..." : "Crear Usuario"}
             </Button>
           </DialogFooter>

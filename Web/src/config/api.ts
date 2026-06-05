@@ -75,7 +75,10 @@ export const API_ENDPOINTS = {
   STAFF: {
     REGISTER: `${API_URL}v1/staff/register`,
     LOGIN: `${API_URL}v1/staff/login`,
+    UPDATE_PROFILE: `${API_URL}v1/staff/updateProfile`,
+    UPLOAD_LETTERHEAD: `${API_URL}v1/staff/uploadLetterhead`,
     GET_ALL_USERS: `${API_URL}v1/staff/getAll`,
+    GET_BY_ID: (userId: string) => `${API_URL}v1/staff/getById/${userId}`,
     GET_BY_BRAND: (brandName: string) => `${API_URL}v1/staff/brand/${brandName}`,
     GET_BY_STORE: (storeName: string) => `${API_URL}v1/staff/store/${storeName}`,
     CHANGE_PASSWORD: `${API_URL}v1/staff/changePassword`,

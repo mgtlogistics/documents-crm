@@ -9,6 +9,7 @@ import { Server } from "socket.io"
 import "./src/config/db.config.js"
 import "./src/services/Cronjobs.services.js"
 import { initializeSocketListeners } from './src/utils/socket.utils.js';
+import { getFrontendImg } from './src/utils/public.utils.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,6 +36,8 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Si app.js está dentro de src/
+app.use('/publics', express.static(path.join(__dirname, 'src', 'public')));
 
 // Función asíncrona para cargar rutas
 const loadRoutes = async () => {
@@ -68,7 +71,7 @@ const loadRoutes = async () => {
 await loadRoutes();
 
 app.get('/', (req, res) => {
-  res.send('API is running');
+  res.send(getFrontendImg('logo.png'));
 });
 
 server.listen(PORT, () => {
