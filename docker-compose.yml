@@ -1,79 +1,35 @@
 services:
-  nginx-proxy:
-    image: 'jc21/nginx-proxy-manager:latest'
-    restart: unless-stopped
-    ports:
-      - '80:80'   # Tráfico web normal
-      - '443:443' # Tráfico seguro (SSL)
-      - '81:81'   # ESTE ES EL PUERTO PARA LA INTERFAZ GRÁFICA
-    volumes:
-      - ./data:/data
-      - ./letsencrypt:/etc/letsencrypt
-    networks:
-      - app-network
-  # Base de Datos
-  mongodb:
-    image: mongo:latest
-    container_name: mongodb_project
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=Sys73mUs3r
-      - MONGO_INITDB_ROOT_PASSWORD=AddzTMW4ciJ5CzZiiMBF
-    networks:
-      - app-network
-
-  # Backend Express
+  # Backend Express (Fork)
   api:
     build: ./Api
-    container_name: express_api
+    container_name: express_api_documents # <-- Nombre único para que Docker no choque con el original
     environment:
-      - databaseUrl=mongodb://Sys73mUs3r:AddzTMW4ciJ5CzZiiMBF@mongodb:27017/gimnasios?authSource=admin
+      - databaseUrl=mongodb://Sys73mUs3r:AddzTMW4ciJ5CzZiiMBF@mongodb:27017/documents?authSource=admin
       - jwtSecret=YxoSrXRQTjdOaUGfEXewIOhG
       - PORT=3010
       - EmailSend=itsaltilloquentli@gmail.com
       - EmailPasswordApp=bioqricozxcgrdqp
-    ports:
-      - "3010:3010"
-    depends_on:
-      - mongodb
+    # NOTA: Eliminamos la sección 'ports' ("3010:3010"). 
+    # El tráfico de internet entrará por el Nginx original y llegará aquí de forma interna.
     networks:
-      - app-network
+      - red_compartida
 
-  # Frontend Administrativo (Vite)
+  # Frontend Administrativo - Fork (Vite)
   web:
     build: ./Web
-    container_name: vite_web
+    container_name: vite_web_documents # <-- Nombre único
     environment:
-      - VITE_API_URL=https://api.nexay.fit/  # <--- IMPORTANTE: Usar el nuevo dominio
-      - VITE_APP_TITLE=My Controller Produccion
+      - VITE_API_URL=https://documents-api.nexay.fit/   # <-- Tu nuevo subdominio de API para el fork
+      - VITE_APP_TITLE=My Controller Fork Produccion
       - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
-      - VITE_HMR_HOST=dashboard.nexay.fit
+      - VITE_HMR_HOST=documents.nexay.fit      # <-- Tu nuevo subdominio Web para el fork
       - VITE_HMR_PROTOCOL=wss
       - VITE_HMR_CLIENT_PORT=443
     networks:
-      - app-network
-
-  # Frontend Cliente (Vite)
-  webclient:
-    build: ./ClientWeb
-    container_name: vite_client
-    environment:
-      - VITE_API_URL=https://api.nexay.fit/  # <--- IMPORTANTE: Usar el nuevo dominio
-      - VITE_APP_TITLE=My Controller Produccion
-      - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
-      - VITE_HMR_HOST=client.nexay.fit
-      - VITE_HMR_PROTOCOL=wss
-      - VITE_HMR_CLIENT_PORT=443
-    networks:
-      - app-network
-
+      - red_compartida
 
 networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  mongo_data:
+  red_compartida:
+    external: true
+    # CAMBIA ESTO: Reemplaza lo que está entre comillas con el nombre exacto que encontraste en el Paso 1
+    name: "gym-crm_app-network"
