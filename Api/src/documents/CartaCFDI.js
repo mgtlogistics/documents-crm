@@ -13,7 +13,7 @@ export function generarCartaCFDI(data) {
   const AUTOCOMP = '(autocompletado)'
   
   if (data.user?.letterhead && fs.existsSync(getFrontendImg(data.user?.letterhead))) {
-    doc.image(getFrontendImg(data.user?.letterhead), left, doc.page.margins.top -30, { height: 50 })
+    doc.image(getFrontendImg(data.user?.letterhead), left, doc.page.margins.top -30, { height: 25 })
   }
 
   doc
