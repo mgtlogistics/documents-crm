@@ -2,6 +2,9 @@ import PDFDocument from 'pdfkit'
 import dayjs from 'dayjs'
 import createStylizedParagraph from './createStylizedParagraph.js'
 
+import fs from "fs"
+import { getFrontendImg } from '../utils/public.utils.js'
+
 export function generarCartaProtestaPersonaMoral(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const pageBottom = () => doc.page.height - doc.page.margins.bottom
@@ -57,6 +60,12 @@ export function generarCartaProtestaPersonaMoral(data) {
   // --- CORRECCIÓN HEADER ---
   // Seteamos las coordenadas una sola vez y dejamos que el flujo avance de forma natural
   doc.x = contentLeft + 175;
+
+  const left = doc.page.margins.left
+  if (data.user?.letterhead && fs.existsSync(getFrontendImg(data.user?.letterhead))) {
+    doc.image(getFrontendImg(data.user?.letterhead), left, doc.page.margins.top -30, { height: 50 })
+  }
+
   doc
     .font('Helvetica-Bold')
     .fontSize(13.5)

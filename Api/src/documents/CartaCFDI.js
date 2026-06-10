@@ -3,17 +3,26 @@ import createStylizedParagraph from './createStylizedParagraph.js'
 import createSignatureBox from './createSignatureBox.js'
 import dayjs from 'dayjs'
 
+import fs from "fs"
+import { getFrontendImg } from '../utils/public.utils.js'
+
 export function generarCartaCFDI(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const left = doc.page.margins.left
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right
   const AUTOCOMP = '(autocompletado)'
+  
+  if (data.user?.letterhead && fs.existsSync(getFrontendImg(data.user?.letterhead))) {
+    doc.image(getFrontendImg(data.user?.letterhead), left, doc.page.margins.top -30, { height: 50 })
+  }
 
   doc
     .font('Helvetica-Bold')
     .fontSize(10.5)
     .text(` ${data.city}, ${data.state}, ${data.country}  | ${dayjs().format('DD/MMMM/YYYY')}`, { align: 'right' })
-    .moveDown(0.8)
+    .moveDown(2)
+
+
 
   doc
     .font('Helvetica-Bold')

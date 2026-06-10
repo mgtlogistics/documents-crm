@@ -1,6 +1,8 @@
 import PDFDocument from 'pdfkit'
 import dayjs from 'dayjs'
 import createStylizedParagraph from './createStylizedParagraph.js'
+import fs from "fs"
+import { getFrontendImg } from '../utils/public.utils.js'
 
 export function generarCartaEncomiendaPersonasMorales(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
@@ -12,6 +14,11 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     align: 'justify'
   }
 
+  const left = doc.page.margins.left
+  if (data.user?.letterhead && fs.existsSync(getFrontendImg(data.user?.letterhead))) {
+    doc.image(getFrontendImg(data.user?.letterhead), left, doc.page.margins.top - 30, { height: 50 })
+  }
+  
   doc
     .font('Helvetica-Bold')
     .fontSize(14)
@@ -19,11 +26,11 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     .moveDown(0.6)
 
   // HEADER - Right aligned date
-   doc
-     .font('Helvetica-Bold')
-     .fontSize(10.5)
-     .text(` ${data.city}, ${data.state}, ${data.country}  | ${dayjs().format('DD/MMMM/YYYY')}`, { align: 'right' })
-     .moveDown(0.8)
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(10.5)
+    .text(` ${data.city}, ${data.state}, ${data.country}  | ${dayjs().format('DD/MMMM/YYYY')}`, { align: 'right' })
+    .moveDown(0.8)
 
   doc
     .font('Helvetica-Bold')

@@ -1,6 +1,8 @@
 import PDFDocument from 'pdfkit'
 import dayjs from 'dayjs'
 import createStylizedParagraph from './createStylizedParagraph.js'
+import fs from "fs"
+import { getFrontendImg } from '../utils/public.utils.js'
 
 export function generarCartaDeEncomienda(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
@@ -11,7 +13,11 @@ export function generarCartaDeEncomienda(data) {
     width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
     align: 'justify'
   }
+  const left = doc.page.margins.left
 
+  if (data.user?.letterhead && fs.existsSync(getFrontendImg(data.user?.letterhead))) {
+    doc.image(getFrontendImg(data.user?.letterhead), left, doc.page.margins.top - 30, { height: 50 })
+  }
 
   // Title
   doc
@@ -50,7 +56,7 @@ export function generarCartaDeEncomienda(data) {
     .font('Helvetica')
     .fontSize(9.5)
     .text(
-      `En mi carácter de Representante Legal de la empresa ${data.user.company.socialReason}, con domicilio fiscal en ${AUTOCOMP}, número exterior ${data.user.address.exteriorNumber}, número interior ${data.user.address.interiorNumber}, colonia ${data.user.address.neighborhood}, municipio ${data.user.address.city}, localidad ${data.user.address.locality}, entidad federativa ${data.user.address.state}, México, Código Postal ${data.user.address.postalCode}, con Registro Federal de Contribuyentes ${data.user.company.rfc}, personalidad que acredito conforme al Poder Notarial número ${data.user.company.powerOfAttorneyNumber}, volumen ${data.user.company.powerOfAttorneyVolume}, otorgado ante la fe del Notario Público número ${data.user.company.notaryNumber}, Lic. ${data.user.company.notaryName}, manifiesto lo siguiente:`,
+      `En mi carácter de Representante Legal de la empresa ${data.user.company.socialReason}, con domicilio fiscal en ${data.user.address.street}, número exterior ${data.user.address.exteriorNumber}, número interior ${data.user.address.interiorNumber}, colonia ${data.user.address.neighborhood}, municipio ${data.user.address.city}, localidad ${data.user.address.locality}, entidad federativa ${data.user.address.state}, México, Código Postal ${data.user.address.postalCode}, con Registro Federal de Contribuyentes ${data.user.company.rfc}, personalidad que acredito conforme al Poder Notarial número ${data.user.company.powerOfAttorneyNumber}, volumen ${data.user.company.powerOfAttorneyVolume}, otorgado ante la fe del Notario Público número ${data.user.company.notaryNumber}, Lic. ${data.user.company.notaryName}, manifiesto lo siguiente:`,
       { align: 'justify' }
     )
     .moveDown(0.8)
@@ -223,7 +229,7 @@ export function generarCartaDeEncomienda(data) {
     .moveDown(0.3)
 
   doc
-    .text(data.legalRepresentativeRFC  , { align: 'center' })
+    .text(data.user.company.legalRepresentativeRfc, { align: 'center' })
     .moveDown(0.3)
 
   doc
