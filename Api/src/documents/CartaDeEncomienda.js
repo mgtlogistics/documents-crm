@@ -3,21 +3,44 @@ import dayjs from 'dayjs'
 import createStylizedParagraph from './createStylizedParagraph.js'
 import fs from "fs"
 import { getFrontendImg } from '../utils/public.utils.js'
+import drawPlaceOfIssuance from './utils/drawPlaceOfIssuance.js'
+import drawLetterhead from './utils/drawLetterhead.js'
+
+const getLegalRepresentativeFullName = (company = {}) => {
+  const representative = company?.legalRepresentative || {}
+  const fullName = [
+    representative.firstName,
+    representative.paternalLastName,
+    representative.maternalLastName,
+  ]
+    .filter((part) => typeof part === 'string' && part.trim().length > 0)
+    .join(' ')
+    .trim()
+
+  return fullName || company?.legalRepresentativeName || 'No llenado'
+}
 
 export function generarCartaDeEncomienda(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const AUTOCOMP = '(autocompletado)'
+  const company = data?.user?.company || {}
+  const powerOfAttorney = company?.powerOfAttorney || {}
+  const powerNotary = powerOfAttorney?.notary || {}
+  const legalRepresentativeName = getLegalRepresentativeFullName(company)
+  const legalRepresentativeRfc = company?.legalRepresentative?.rfc || company?.legalRepresentativeRfc || 'No llenado'
+  const powerNumber = powerOfAttorney?.number || company?.powerOfAttorneyNumber || 'No llenado'
+  const powerVolume = powerOfAttorney?.volume || company?.powerOfAttorneyVolume || 'No llenado'
+  const notaryNumber = powerNotary?.number || company?.notaryNumber || 'No llenado'
+  const notaryName = powerNotary?.name || company?.notaryName || 'No llenado'
 
   const paragraphOptions = {
     fontSize: 10,
     width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
     align: 'justify'
   }
+  const top = doc.page.margins.top
   const left = doc.page.margins.left
 
-  if (data.user?.letterhead && fs.existsSync(getFrontendImg(data.user?.letterhead))) {
-    doc.image(getFrontendImg(data.user?.letterhead), left, doc.page.margins.top - 30, { height: 25 })
-  }
 
   // Title
   doc
@@ -31,14 +54,9 @@ export function generarCartaDeEncomienda(data) {
   doc
     .font('Helvetica')
     .fontSize(10.5)
-  doc
-    .font('Helvetica')
-    .fontSize(10.5)
-    .text(data?.country || 'No llenado', { align: 'right' })
-    .text(data?.state || 'No llenado', { align: 'right' })
-    .text(data?.city || 'No llenado', { align: 'right' })
-    .text(dayjs().format('DD/MM/YYYY') || 'No llenado', { align: 'right' })
-    .moveDown(0.8)
+
+  drawPlaceOfIssuance(doc, data,{y:top + 28})
+  drawLetterhead(doc, data)
 
 
   // Agent info
@@ -56,7 +74,7 @@ export function generarCartaDeEncomienda(data) {
     .font('Helvetica')
     .fontSize(9.5)
     .text(
-      `En mi carácter de Representante Legal de la empresa ${data.user.company.socialReason}, con domicilio fiscal en ${data.user.address.street}, número exterior ${data.user.address.exteriorNumber}, número interior ${data.user.address.interiorNumber}, colonia ${data.user.address.neighborhood}, municipio ${data.user.address.city}, localidad ${data.user.address.locality}, entidad federativa ${data.user.address.state}, México, Código Postal ${data.user.address.postalCode}, con Registro Federal de Contribuyentes ${data.user.company.rfc}, personalidad que acredito conforme al Poder Notarial número ${data.user.company.powerOfAttorneyNumber}, volumen ${data.user.company.powerOfAttorneyVolume}, otorgado ante la fe del Notario Público número ${data.user.company.notaryNumber}, Lic. ${data.user.company.notaryName}, manifiesto lo siguiente:`,
+      `En mi carácter de Representante Legal de la empresa ${company.socialReason}, con domicilio fiscal en ${data.user.address.street}, número exterior ${data.user.address.exteriorNumber}, número interior ${data.user.address.interiorNumber}, colonia ${data.user.address.neighborhood}, municipio ${data.user.address.city}, localidad ${data.user.address.locality}, entidad federativa ${data.user.address.state}, México, Código Postal ${data.user.address.postalCode}, con Registro Federal de Contribuyentes ${company.rfc}, personalidad que acredito conforme al Poder Notarial número ${powerNumber}, volumen ${powerVolume}, otorgado ante la fe del Notario Público número ${notaryNumber}, Lic. ${notaryName}, manifiesto lo siguiente:`,
       { align: 'justify' }
     )
     .moveDown(0.8)
@@ -225,11 +243,11 @@ export function generarCartaDeEncomienda(data) {
   doc
     .font('Helvetica')
     .fontSize(10)
-    .text(data.user.company.legalRepresentativeName, { align: 'center' })
+    .text(legalRepresentativeName, { align: 'center' })
     .moveDown(0.3)
 
   doc
-    .text(data.user.company.legalRepresentativeRfc, { align: 'center' })
+    .text(legalRepresentativeRfc, { align: 'center' })
     .moveDown(0.3)
 
   doc

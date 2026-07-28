@@ -1,34 +1,11 @@
 import mongoose from 'mongoose';
+import companySchema from './Company.js';
 
 
 const personSchema = new mongoose.Schema({
   names: { type: String, required: true, trim: true, default: "" },
   surnames: { type: String, required: true, trim: true, default: "" },
   rfc: { type: String, required: true, trim: true, default: "" },
-}, {
-  id: false,
-  timestamps: true,
-})
-
-/*  powerOfAttorneyVolume en realidad hace referencia al volumen 
-    de la escritura, fue un fallo de en la explicación de como
-    funcionaba el tema de la información de persona moral
-*/
-const companySchema = new mongoose.Schema({
-  socialReason: { type: String, required: true, trim: true, default: "" },
-  rfc: { type: String, required: true, trim: true, default: "" },
-  legalRepresentativeName: { type: String, required: true, trim: true, default: "" },
-  legalRepresentativeRfc: { type: String, required: true, trim: true, default: "" },
-  legalRepresentativePosition: { type: String, required: true, trim: true, default: "" },
-  formFillerName: { type: String, required: true, trim: true, default: "" },
-  scripture: { type: String, required: true, trim: true, default: "" },
-  notaryName: { type: String, required: true, trim: true, default: "" },
-  notaryNumber: { type: String, required: true, trim: true, default: "" },
-  notaryCity: { type: String, required: true, trim: true, default: "" },
-  notaryState: { type: String, required: true, trim: true, default: "" },
-  powerOfAttorneyNumber: { type: String, required: true, trim: true, default: "" },
-  powerOfAttorneyVolume: { type: String, required: true, trim: true, default: "" },
-  powerOfAttorneyDate: { type: Date, required: true },
 }, {
   id: false,
   timestamps: true,

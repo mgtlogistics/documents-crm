@@ -1,9 +1,39 @@
 import PDFDocument from 'pdfkit'
 import createStylizedParagraph from './createStylizedParagraph.js'
+import dayjs from 'dayjs'
+import drawLetterhead from './utils/drawLetterhead.js'
+import drawPlaceOfIssuance from './utils/drawPlaceOfIssuance.js'
 
-export function generarCartaProtesta() {
+const getLegalRepresentativeFullName = (company = {}) => {
+  const representative = company?.legalRepresentative || {}
+  const fullName = [
+    representative.firstName,
+    representative.paternalLastName,
+    representative.maternalLastName,
+  ]
+    .filter((part) => typeof part === 'string' && part.trim().length > 0)
+    .join(' ')
+    .trim()
+
+  return fullName || company?.legalRepresentativeName || 'No llenado'
+}
+
+export function generarCartaProtesta(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const AUTOCOMP = '(autocompletado)'
+  const company = data?.user?.company || {}
+  const legalRepresentativeName = getLegalRepresentativeFullName(company)
+  const powerOfAttorney = company?.powerOfAttorney || {}
+  const powerNotary = powerOfAttorney?.notary || {}
+  const publicDeed = company?.publicDeed || {}
+  const deedNumber = publicDeed?.number || company?.scripture || 'No llenado'
+  const deedVolume = publicDeed?.volume || company?.powerOfAttorneyVolume || 'No llenado'
+  const powerNumber = powerOfAttorney?.number || company?.powerOfAttorneyNumber || 'No llenado'
+  const powerDate = powerOfAttorney?.date || company?.powerOfAttorneyDate
+  const notaryNumber = powerNotary?.number || company?.notaryNumber || 'No llenado'
+  const notaryName = powerNotary?.name || company?.notaryName || 'No llenado'
+  const notaryCity = powerNotary?.city || company?.notaryCity || 'No llenado'
+  const notaryState = powerNotary?.state || company?.notaryState || 'No llenado'
 
 
   const paragraphOptions = {
@@ -11,6 +41,8 @@ export function generarCartaProtesta() {
     width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
     align: 'justify'
   }
+
+
 
   doc
     .font('Helvetica-Bold')
@@ -24,52 +56,40 @@ export function generarCartaProtesta() {
     .text('fracciones V, IX de las RGCE 2026', { align: 'center' })
     .moveDown(1)
 
-  doc
-    .font('Helvetica')
-    .fontSize(9.5)
-    .text(`[Lugar y fecha]: ${AUTOCOMP}`, { align: 'right' })
-    .moveDown(1)
 
+  drawPlaceOfIssuance(doc, data, { preserveCursor: true })
+  drawLetterhead(doc, data)
+  
   doc
     .font('Helvetica-Bold')
     .fontSize(10)
     .text('A quien corresponda', { align: 'left' })
   doc.text('Presente.', { align: 'left' }).moveDown(0.8)
 
+  const address = data?.user?.address || {}
+  const domicilioFiscal = `${address.street || ''} ${address.exteriorNumber || ''} ${address.interiorNumber || ''} ${address.neighborhood || ''} ${address.city || ''} ${address.state || ''} ${address.country || ''} ${address.zipCode || ''}, C.P. ${address.postalCode || ''}`
+
+
   const manifestacionParrafos = [
     // Párrafo 1: Datos de presentación y fundamentación
     [
       { text: 'El que suscribe ' },
-      { text: '[NOMBRE COMPLETO DEL USUARIO],', isBold: true },
-      { text: ' en mi carácter de ' },
-      { text: '[representante legal / persona física]', isBold: true },
+      { text: legalRepresentativeName, isBold: true },
+      { text: ', en mi carácter de ' },
+      { text: 'representante legal', isBold: true },
       { text: ' de ' },
-      { text: '[NOMBRE O RAZÓN SOCIAL DEL CLIENTE],', isBold: true },
-      { text: ' con RFC ' },
-      { text: '[RFC],', isBold: true },
-      { text: ' y con domicilio fiscal en ' },
-      { text: '[DOMICILIO FISCAL COMPLETO],', isBold: true },
-      { text: ' acreditando mi personalidad mediante ' },
-      { text: 'Poder Notarial', isBold: true },
+      { text: data.user.company.socialReason, isBold: true },
+      { text: ', con ' },
+      { text: `RFC ${data.user.company.rfc}`, isBold: true },
+      { text: ', y con domicilio fiscal en ' },
+      { text: domicilioFiscal, isBold: true },
+      { text: ', acreditando mi personalidad mediante ' },
+      { text: `Poder Notarial ${powerNumber}`, isBold: true },
       { text: ' otorgado mediante ' },
-      { text: 'escritura publica número', isBold: true },
-      { text: ' ' },
-      { text: '(preguntar)', isUnderlined: true },
-      { text: ', ' },
-      { text: 'volumen', isBold: true },
-      { text: ' ' },
-      { text: '(preguntar)', isUnderlined: true },
-      { text: ', de fecha ' },
-      { text: '(preguntar)', isUnderlined: true },
-      { text: ', pasada ante la fe del ' },
-      { text: 'Notario Público número', isBold: true },
-      { text: ' ' },
-      { text: '(preguntar)', isUnderlined: true },
-      { text: ', Lic. ' },
-      { text: '(preguntar)', isUnderlined: true },
-      { text: ', de la Ciudad de ' },
-      { text: '(preguntar)', isUnderlined: true },
-      { text: ', con fundamento en lo dispuesto por la ' },
+      { text: `escritura pública número ${deedNumber}, volumen ${deedVolume}, `, isBold: true },
+      { text: ` de fecha ${dayjs(powerDate).format('DD/MM/YYYY')}, pasada ante la fe del `, isBold: true },
+      { text: `Notario Público número ${notaryNumber},`, isBold: true },
+      { text: ` Lic. ${notaryName}, de la Ciudad de ${notaryCity}, ${notaryState}, con fundamento en lo dispuesto por la ` },
       { text: 'regla la regla 3.1.42, fracciones V y IX de las Reglas Generales de Comercio Exterior, manifiesto bajo protesta de decir verdad en nombre de mi representada', isBold: true },
       { text: ' lo siguiente:' }
     ],
@@ -82,7 +102,7 @@ export function generarCartaProtesta() {
     // Párrafo 3: Vigencia de la manifestación
     [
       { text: 'La presente manifestación se realiza para los efectos legales y administrativos a que haya lugar, relacionada con las ' },
-      { text: 'operaciones de comercio exterior solicitadas', isBold: true },
+      { text: ' operaciones de comercio exterior solicitadas ', isBold: true },
       { text: ' por el suscrito dentro del periodo del ' },
       { text: '01 de enero de 2026 al 31 de diciembre de 2026.', isBold: true }
     ],
@@ -111,14 +131,14 @@ export function generarCartaProtesta() {
   doc
     .font('Helvetica')
     .fontSize(9.5)
-    .text('(NOMBRE DE LA EMPRESA)', { align: 'center' })
+    .text(data?.user?.company?.socialReason || '', { align: 'center' })
     .moveDown(1.8)
 
   doc
     .text('_________________________________', { align: 'center' })
     .text('Nombre y firma', { align: 'center' })
-    .text('Representante Legal', { align: 'center' })
-    .text('RFC', { align: 'center' })
+    .text(legalRepresentativeName, { align: 'center' })
+    .text(data.user.company.rfc, { align: 'center' })
 
   doc.end()
   return doc

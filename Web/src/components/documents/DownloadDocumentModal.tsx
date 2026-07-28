@@ -1,525 +1,790 @@
 import { useEffect, useMemo, useState } from "react"
+import { PlusCircleIcon, Trash2Icon } from "lucide-react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { useAuthStore } from "@/store/authStore"
 import api, { postDownloadDocumentFromEndpoint } from "@/utils/api"
 
-type FieldType = "text" | "number" | "date" | "select" | "checkbox" | "textarea"
+type FieldType =
+  | "text"
+  | "number"
+  | "date"
+  | "select"
+  | "checkbox"
+  | "textarea"
+  | "yes_no_comment"
+  | "string_list"
 type ApiUserRole = "client" | "company"
 
 const CLIENT_ROLE_ID = "6a156a603a5d7ea978fbb13c"
 const COMPANY_ROLE_ID = "6a156a6d3a5d7ea978fbb13d"
 
 interface FieldOption {
-	label: string
-	value: string | number | boolean
+  label: string
+  value: string | number | boolean
 }
 
 interface FieldValidations {
-	min?: number
-	max?: number
-	regex?: string
+  min?: number
+  max?: number
+  regex?: string
+}
+
+interface YesNoValue {
+  answer: "SI" | "NO"
+  comment: string
+}
+
+interface YesNoConfig {
+  commentPlaceholder?: string
+  commentRequired?: boolean
 }
 
 interface DocumentField {
-	fieldKey: string
-	tag: string
-	type: FieldType
-	required?: boolean
-	placeholder?: string
-	options?: FieldOption[]
-	validations?: FieldValidations
+  fieldKey: string
+  tag: string
+  type: FieldType
+  required?: boolean
+  placeholder?: string
+  options?: FieldOption[]
+  validations?: FieldValidations
+  yesNoConfig?: YesNoConfig
+}
+
+interface DocumentSection {
+  title: string
+  description?: string
+  fields: DocumentField[]
+}
+
+interface DocumentStructure {
+  title?: string
+  sections?: DocumentSection[]
+  fields?: DocumentField[]
 }
 
 interface DocumentDetails {
-	_id: string
-	key: string
-	name: string
-	downloadEndpoint: string
-	userType: ApiUserRole
-	documentStructureId?: {
-		fields?: DocumentField[]
-	}
+  _id: string
+  key: string
+  name: string
+  downloadEndpoint: string
+  userType: ApiUserRole
+  documentStructureId?: DocumentStructure
 }
 
 interface StructureResponse {
-	document: DocumentDetails
-	structure?: {
-		fields?: DocumentField[]
-	}
+  document: DocumentDetails
+  structure?: DocumentStructure
 }
 
 interface DownloadDocumentModalProps {
-	documentId: string
-	documentRequestId?: string | null
-	onSuccess?: () => void | Promise<void>
-	trigger?: React.ReactNode
-	open?: boolean
-	onOpenChange?: (open: boolean) => void
+  documentId: string
+  documentRequestId?: string | null
+  onSuccess?: () => void | Promise<void>
+  trigger?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 interface RoleUser {
-	_id: string
-	label: string
-	subtitle?: string
+  _id: string
+  label: string
+  subtitle?: string
 }
 
-function getInitialValue(field: DocumentField): string | boolean {
-	if (field.type === "checkbox") return false
-	return ""
+type FieldValue = string | boolean | YesNoValue | string[]
+type FieldValues = Record<string, FieldValue>
+type ListDraftValues = Record<string, string>
+
+function normalizeField(field: DocumentField): DocumentField {
+  return {
+    fieldKey: field.fieldKey,
+    tag: field.tag,
+    type: field.type,
+    required: field.required,
+    placeholder: field.placeholder,
+    options: field.options ?? [],
+    validations: field.validations,
+    yesNoConfig:
+      field.type === "yes_no_comment"
+        ? {
+          commentPlaceholder: field.yesNoConfig?.commentPlaceholder ?? "Observaciones...",
+          commentRequired: Boolean(field.yesNoConfig?.commentRequired),
+        }
+        : undefined,
+  }
 }
 
-function getFieldError(
-	field: DocumentField,
-	rawValue: unknown
-): string | null {
-	const isEmpty = rawValue === "" || rawValue === null || rawValue === undefined
+function normalizeSectionsFromStructure(
+  structure?: DocumentStructure,
+  fallbackStructure?: DocumentStructure
+): DocumentSection[] {
+  const source = structure ?? fallbackStructure
 
-	if (field.required) {
-		if (field.type === "checkbox") {
-			if (rawValue !== true) {
-				return `${field.tag} es requerido`
-			}
-		} else if (isEmpty) {
-			return `${field.tag} es requerido`
-		}
-	}
+  if (Array.isArray(source?.sections) && source.sections.length > 0) {
+    return source.sections.map((section, sectionIndex) => ({
+      title: section.title || `Sección ${sectionIndex + 1}`,
+      description: section.description || "",
+      fields: (section.fields ?? []).map((field) => normalizeField(field)),
+    }))
+  }
 
-	if (isEmpty || field.type === "checkbox") return null
+  if (Array.isArray(source?.fields) && source.fields.length > 0) {
+    return [
+      {
+        title: "Sección general",
+        description: "",
+        fields: source.fields.map((field) => normalizeField(field)),
+      },
+    ]
+  }
 
-	if (field.type === "number") {
-		const numberValue = Number(rawValue)
-		if (Number.isNaN(numberValue)) {
-			return `${field.tag} debe ser un numero valido`
-		}
-		if (field.validations?.min !== undefined && numberValue < field.validations.min) {
-			return `${field.tag} debe ser mayor o igual a ${field.validations.min}`
-		}
-		if (field.validations?.max !== undefined && numberValue > field.validations.max) {
-			return `${field.tag} debe ser menor o igual a ${field.validations.max}`
-		}
-	}
+  return []
+}
 
-	if (field.validations?.regex && typeof rawValue === "string") {
-		try {
-			const regex = new RegExp(field.validations.regex)
-			if (!regex.test(rawValue)) {
-				return `${field.tag} no cumple con el formato requerido`
-			}
-		} catch {
-			return "Validacion regex invalida en la configuracion del documento"
-		}
-	}
+function getInitialValue(field: DocumentField): FieldValue {
+  if (field.type === "checkbox") return false
+  if (field.type === "yes_no_comment") return { answer: "NO", comment: "" }
+  if (field.type === "string_list") return []
+  return ""
+}
 
-	return null
+function getPrimitiveFieldError(field: DocumentField, rawValue: unknown): string | null {
+  const isEmpty = rawValue === "" || rawValue === null || rawValue === undefined
+
+  if (field.required) {
+    if (field.type === "checkbox") {
+      if (rawValue !== true) {
+        return `${field.tag} es requerido`
+      }
+    } else if (isEmpty) {
+      return `${field.tag} es requerido`
+    }
+  }
+
+  if (isEmpty || field.type === "checkbox") return null
+
+  if (field.type === "number") {
+    const numberValue = Number(rawValue)
+    if (Number.isNaN(numberValue)) {
+      return `${field.tag} debe ser un número válido`
+    }
+    if (field.validations?.min !== undefined && numberValue < field.validations.min) {
+      return `${field.tag} debe ser mayor o igual a ${field.validations.min}`
+    }
+    if (field.validations?.max !== undefined && numberValue > field.validations.max) {
+      return `${field.tag} debe ser menor o igual a ${field.validations.max}`
+    }
+  }
+
+  if (field.validations?.regex && typeof rawValue === "string") {
+    try {
+      const regex = new RegExp(field.validations.regex)
+      if (!regex.test(rawValue)) {
+        return `${field.tag} no cumple con el formato requerido`
+      }
+    } catch {
+      return "Validación regex inválida en la configuración del documento"
+    }
+  }
+
+  return null
+}
+
+function getFieldError(field: DocumentField, rawValue: unknown): string | null {
+  if (field.type === "yes_no_comment") {
+    const value = rawValue as YesNoValue | undefined
+    if (!value?.answer) {
+      return `${field.tag} es requerido`
+    }
+    if (field.yesNoConfig?.commentRequired && !String(value.comment ?? "").trim()) {
+      return `La observación de ${field.tag} es requerida`
+    }
+    return null
+  }
+
+  if (field.type === "string_list") {
+    const items = Array.isArray(rawValue) ? rawValue : []
+    const nonEmptyItems = items
+      .map((item) => String(item ?? "").trim())
+      .filter((item) => item.length > 0)
+
+    if (field.required && nonEmptyItems.length === 0) {
+      return `${field.tag} requiere al menos un elemento`
+    }
+
+    return null
+  }
+
+  return getPrimitiveFieldError(field, rawValue)
+}
+
+function normalizePrimitiveForPayload(field: DocumentField, rawValue: unknown) {
+  if (field.type === "checkbox") {
+    return Boolean(rawValue)
+  }
+
+  if (rawValue === "" || rawValue === null || rawValue === undefined) {
+    return undefined
+  }
+
+  if (field.type === "number") {
+    return Number(rawValue)
+  }
+
+  if (field.type === "select") {
+    const selectedOption = field.options?.find((option) => String(option.value) === String(rawValue))
+    return selectedOption ? selectedOption.value : rawValue
+  }
+
+  return rawValue
 }
 
 export default function DownloadDocumentModal({
-	documentId,
-	documentRequestId = null,
-	onSuccess,
-	trigger,
-	open: controlledOpen,
-	onOpenChange,
+  documentId,
+  documentRequestId = null,
+  onSuccess,
+  trigger,
+  open: controlledOpen,
+  onOpenChange,
 }: DownloadDocumentModalProps) {
-	const [internalOpen, setInternalOpen] = useState(false)
-	const [loading, setLoading] = useState(false)
-	const [loadingUsers, setLoadingUsers] = useState(false)
-	const [submitting, setSubmitting] = useState(false)
-	const [documentDetails, setDocumentDetails] = useState<DocumentDetails | null>(null)
-	const [fields, setFields] = useState<DocumentField[]>([])
-	const [values, setValues] = useState<Record<string, string | boolean>>({})
-	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-	const [requestError, setRequestError] = useState<string | null>(null)
-	const [users, setUsers] = useState<RoleUser[]>([])
-	const [selectedUserId, setSelectedUserId] = useState("")
-	const currentUserId = useAuthStore((state) => state.getUserId())
-	const currentRole = useAuthStore((state) => state.getRole())
-	const isSuperAdmin = (currentRole?.name ?? "").trim().toLowerCase() === "super admin"
+  const [internalOpen, setInternalOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [documentDetails, setDocumentDetails] = useState<DocumentDetails | null>(null)
+  const [sections, setSections] = useState<DocumentSection[]>([])
+  const [values, setValues] = useState<FieldValues>({})
+  const [listDrafts, setListDrafts] = useState<ListDraftValues>({})
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [requestError, setRequestError] = useState<string | null>(null)
+  const [users, setUsers] = useState<RoleUser[]>([])
+  const [selectedUserId, setSelectedUserId] = useState("")
+  const currentUserId = useAuthStore((state) => state.getUserId())
+  const currentRole = useAuthStore((state) => state.getRole())
+  const isSuperAdmin = (currentRole?.name ?? "").trim().toLowerCase() === "super admin"
 
-	const isControlled = controlledOpen !== undefined
-	const open = isControlled ? controlledOpen : internalOpen
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
 
-	const handleOpenChange = (nextOpen: boolean) => {
-		if (!isControlled) {
-			setInternalOpen(nextOpen)
-		}
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(nextOpen)
+    }
 
-		if (!nextOpen) {
-			resetModalState()
-		}
+    if (!nextOpen) {
+      resetModalState()
+    }
 
-		onOpenChange?.(nextOpen)
-	}
+    onOpenChange?.(nextOpen)
+  }
 
-	const hasFields = fields.length > 0
-	const targetUserRoleId = documentDetails?.userType === "company" ? COMPANY_ROLE_ID : CLIENT_ROLE_ID
+  const hasFields = sections.some((section) => section.fields.length > 0)
+  const targetUserRoleId = documentDetails?.userType === "company" ? COMPANY_ROLE_ID : CLIENT_ROLE_ID
 
-	const title = useMemo(() => {
-		if (!documentDetails) return "Descargar documento"
-		return `Descargar ${documentDetails.name}`
-	}, [documentDetails])
+  const title = useMemo(() => {
+    if (!documentDetails) return "Descargar documento"
+    return `Descargar ${documentDetails.name}`
+  }, [documentDetails])
 
-	const resetModalState = () => {
-		setLoading(false)
-		setSubmitting(false)
-		setDocumentDetails(null)
-		setFields([])
-		setValues({})
-		setFieldErrors({})
-		setRequestError(null)
-		setUsers([])
-		setSelectedUserId("")
-	}
+  const resetModalState = () => {
+    setLoading(false)
+    setSubmitting(false)
+    setDocumentDetails(null)
+    setSections([])
+    setValues({})
+    setListDrafts({})
+    setFieldErrors({})
+    setRequestError(null)
+    setUsers([])
+    setSelectedUserId("")
+  }
 
-	useEffect(() => {
-		if (!open) return
+  useEffect(() => {
+    if (!open) return
 
-		const load = async () => {
-			setLoading(true)
-			setRequestError(null)
+    const load = async () => {
+      setLoading(true)
+      setRequestError(null)
 
-			try {
-				const { data } = await api.get<StructureResponse>(`/api/documents/${documentId}`)
+      try {
+        const { data } = await api.get<StructureResponse>(`/api/documents/${documentId}`)
+        const responseSections = normalizeSectionsFromStructure(data.structure, data.document.documentStructureId)
 
-				const responseFields =
-					data.structure?.fields ?? data.document.documentStructureId?.fields ?? []
+        const initialValues: FieldValues = {}
+        const initialListDrafts: ListDraftValues = {}
 
-				const initialValues = responseFields.reduce<Record<string, string | boolean>>((acc, field) => {
-					acc[field.fieldKey] = getInitialValue(field)
-					return acc
-				}, {})
+        responseSections.forEach((section) => {
+          section.fields.forEach((field) => {
+            initialValues[field.fieldKey] = getInitialValue(field)
+            if (field.type === "string_list") {
+              initialListDrafts[field.fieldKey] = ""
+            }
+          })
+        })
 
-				setDocumentDetails(data.document)
-				setFields(responseFields)
-				setValues(initialValues)
-				setFieldErrors({})
-			} catch (err: unknown) {
-				const message =
-					(err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-					"No fue posible cargar la estructura del documento"
+        setDocumentDetails(data.document)
+        setSections(responseSections)
+        setValues(initialValues)
+        setListDrafts(initialListDrafts)
+        setFieldErrors({})
+      } catch (err: unknown) {
+        const message =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          "No fue posible cargar la estructura del documento"
 
-				setRequestError(message)
-			} finally {
-				setLoading(false)
-			}
-		}
+        setRequestError(message)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-		load()
-	}, [documentId, open])
+    load()
+  }, [documentId, open])
 
-	useEffect(() => {
-		if (!open) return
+  useEffect(() => {
+    if (!open) return
 
-		if (!isSuperAdmin) {
-			setUsers([])
-			setSelectedUserId(currentUserId ?? "")
-			return
-		}
+    if (!isSuperAdmin) {
+      setUsers([])
+      setSelectedUserId(currentUserId ?? "")
+      return
+    }
 
-		if (!documentDetails?.userType) return
+    if (!documentDetails?.userType) return
 
-		const loadUsers = async () => {
-			setSelectedUserId("")
-			setLoadingUsers(true)
-			try {
-				const { data } = await api.get<RoleUser[]>(`/v1/staff/by-role/${targetUserRoleId}`)
-				setUsers(data || [])
-			} catch (err: unknown) {
-				const message =
-					(err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-					"No fue posible cargar los usuarios del rol seleccionado"
+    const loadUsers = async () => {
+      setSelectedUserId("")
+      setLoadingUsers(true)
+      try {
+        const { data } = await api.get<RoleUser[]>(`/v1/staff/by-role/${targetUserRoleId}`)
+        setUsers(data || [])
+      } catch (err: unknown) {
+        const message =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          "No fue posible cargar los usuarios del rol seleccionado"
 
-				toast.error(message)
-			} finally {
-				setLoadingUsers(false)
-			}
-		}
+        toast.error(message)
+      } finally {
+        setLoadingUsers(false)
+      }
+    }
 
-		loadUsers()
-	}, [currentUserId, documentDetails?.userType, isSuperAdmin, open, targetUserRoleId])
+    loadUsers()
+  }, [currentUserId, documentDetails?.userType, isSuperAdmin, open, targetUserRoleId])
 
-	const setFieldValue = (fieldKey: string, value: string | boolean) => {
-		setValues((prev) => ({ ...prev, [fieldKey]: value }))
-		setFieldErrors((prev) => {
-			if (!prev[fieldKey]) return prev
-			const next = { ...prev }
-			delete next[fieldKey]
-			return next
-		})
-	}
+  const setFieldValue = (fieldKey: string, value: FieldValue) => {
+    setValues((prev) => ({ ...prev, [fieldKey]: value }))
+    setFieldErrors((prev) => {
+      if (!prev[fieldKey]) return prev
+      const next = { ...prev }
+      delete next[fieldKey]
+      return next
+    })
+  }
 
-	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault()
-		if (!documentDetails) return
+  const setListDraftValue = (fieldKey: string, value: string) => {
+    setListDrafts((prev) => ({ ...prev, [fieldKey]: value }))
+  }
 
-		const nextErrors: Record<string, string> = {}
+  const addStringListItem = (fieldKey: string) => {
+    const draft = String(listDrafts[fieldKey] ?? "").trim()
+    if (!draft) return
 
-		for (const field of fields) {
-			const error = getFieldError(field, values[field.fieldKey])
-			if (error) {
-				nextErrors[field.fieldKey] = error
-			}
-		}
+    const current = Array.isArray(values[fieldKey]) ? (values[fieldKey] as string[]) : []
+    setFieldValue(fieldKey, [...current, draft])
+    setListDraftValue(fieldKey, "")
+  }
 
-		if (Object.keys(nextErrors).length > 0) {
-			setFieldErrors(nextErrors)
-			return
-		}
+  const removeStringListItem = (fieldKey: string, indexToRemove: number) => {
+    const current = Array.isArray(values[fieldKey]) ? (values[fieldKey] as string[]) : []
+    const next = current.filter((_, index) => index !== indexToRemove)
+    setFieldValue(fieldKey, next)
+  }
 
-		const payload = fields.reduce<Record<string, unknown>>((acc, field) => {
-			const rawValue = values[field.fieldKey]
+  const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    if (event.key !== "Enter") return
 
-			if (field.type === "checkbox") {
-				acc[field.fieldKey] = Boolean(rawValue)
-				return acc
-			}
+    const target = event.target as HTMLElement
+    const isTextArea = target instanceof HTMLTextAreaElement
 
-			if (rawValue === "" || rawValue === null || rawValue === undefined) {
-				return acc
-			}
+    if (!isTextArea) {
+      event.preventDefault()
+    }
+  }
 
-			if (field.type === "number") {
-				acc[field.fieldKey] = Number(rawValue)
-				return acc
-			}
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!documentDetails) return
 
-			if (field.type === "select") {
-				const selectedOption = field.options?.find(
-					(option) => String(option.value) === String(rawValue)
-				)
+    const nextErrors: Record<string, string> = {}
 
-				acc[field.fieldKey] = selectedOption ? selectedOption.value : rawValue
-				return acc
-			}
+    for (const section of sections) {
+      for (const field of section.fields) {
+        const fieldError = getFieldError(field, values[field.fieldKey])
+        if (fieldError) {
+          nextErrors[field.fieldKey] = fieldError
+        }
+      }
+    }
 
-			acc[field.fieldKey] = rawValue
-			return acc
-		}, {})
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors)
+      return
+    }
 
-		if (!selectedUserId) {
-			toast.error("Debes seleccionar un usuario")
-			return
-		}
+    const payload = sections.reduce<Record<string, unknown>>((acc, section) => {
+      section.fields.forEach((field) => {
+        const rawValue = values[field.fieldKey]
 
-		payload.userId = selectedUserId
+        if (field.type === "yes_no_comment") {
+          const yesNoValue = rawValue as YesNoValue
+          acc[field.fieldKey] = {
+            answer: yesNoValue?.answer ?? "NO",
+            comment: yesNoValue?.comment ?? "",
+          }
+          return
+        }
 
-		setSubmitting(true)
-		setRequestError(null)
+        if (field.type === "string_list") {
+          const items = Array.isArray(rawValue) ? rawValue : []
+          const normalizedList = items
+            .map((item) => String(item ?? "").trim())
+            .filter((item) => item.length > 0)
+          acc[field.fieldKey] = normalizedList
+          return
+        }
 
-		try {
-			await postDownloadDocumentFromEndpoint(
-				documentDetails.downloadEndpoint,
-				payload,
-				documentDetails.key
-			)
+        const normalized = normalizePrimitiveForPayload(field, rawValue)
+        if (normalized !== undefined) {
+          acc[field.fieldKey] = normalized
+        }
+      })
 
-			if (documentRequestId) {
-				try {
-					await api.patch(`/api/document-requests/${documentRequestId}/status`, {
-						status: "completed",
-					})
-				} catch {
-					toast.warn("El documento se generó, pero no fue posible actualizar la solicitud")
-				}
-			}
+      return acc
+    }, {})
 
-			await onSuccess?.()
+    if (!selectedUserId) {
+      toast.error("Debes seleccionar un usuario")
+      return
+    }
 
-			toast.success("Documento generado correctamente")
-			handleOpenChange(false)
-		} catch (err: unknown) {
-			const message =
-				(err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-				"No fue posible generar el documento"
+    payload.userId = selectedUserId
 
-			setRequestError(message)
-			toast.error(message)
-		} finally {
-			setSubmitting(false)
-		}
-	}
+    setSubmitting(true)
+    setRequestError(null)
 
-	return (
-		<Dialog open={open} onOpenChange={handleOpenChange}>
-			{trigger ? (
-				<DialogTrigger asChild>
-					{trigger}
-				</DialogTrigger>
-			) : null}
+    try {
+      await postDownloadDocumentFromEndpoint(
+        documentDetails.downloadEndpoint,
+        payload,
+        documentDetails.key
+      )
 
-			<DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-				<DialogHeader>
-					<DialogTitle>{title}</DialogTitle>
-					<DialogDescription>
-						Completa los campos requeridos para generar y descargar el PDF.
-					</DialogDescription>
-				</DialogHeader>
+      if (documentRequestId) {
+        try {
+          await api.patch(`/api/document-requests/${documentRequestId}/status`, {
+            status: "completed",
+          })
+        } catch {
+          toast.warn("El documento se genero, pero no fue posible actualizar la solicitud")
+        }
+      }
 
-				{loading ? (
-					<p className="text-sm text-muted-foreground">Cargando configuracion del documento...</p>
-				) : requestError ? (
-					<p className="text-sm text-destructive">{requestError}</p>
-				) : (
-					<form className="space-y-4" onSubmit={handleSubmit}>
-						{isSuperAdmin ? (
-							<div className="grid gap-2">
-								<Label>Usuario</Label>
-								<Select
-									value={selectedUserId}
-									onValueChange={setSelectedUserId}
-									disabled={!documentDetails || loadingUsers || submitting}
-								>
-									<SelectTrigger>
-										<SelectValue
-											placeholder={loadingUsers ? "Cargando usuarios..." : "Selecciona un usuario"}
-										/>
-									</SelectTrigger>
-									<SelectContent>
-										{users.map((user) => (
-											<SelectItem key={user._id} value={user._id}>
-												{user.label}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-						) : null}
+      await onSuccess?.()
 
-						{hasFields ? (
-							fields.map((field) => {
-								const value = values[field.fieldKey]
-								const error = fieldErrors[field.fieldKey]
+      toast.success("Documento generado correctamente")
+      handleOpenChange(false)
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "No fue posible generar el documento"
 
-								return (
-									<div className="grid gap-2" key={field.fieldKey}>
-										<Label htmlFor={field.fieldKey}>
-											{field.tag}
-											{field.required ? <span className="text-destructive"> *</span> : null}
-										</Label>
+      setRequestError(message)
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
-										{field.type === "text" ? (
-											<Input
-												id={field.fieldKey}
-												value={String(value ?? "")}
-												onChange={(event) => setFieldValue(field.fieldKey, event.target.value)}
-												placeholder={field.placeholder || ""}
-												disabled={submitting}
-											/>
-										) : null}
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      {trigger ? (
+        <DialogTrigger asChild>
+          {trigger}
+        </DialogTrigger>
+      ) : null}
 
-										{field.type === "number" ? (
-											<Input
-												id={field.fieldKey}
-												type="number"
-												value={String(value ?? "")}
-												onChange={(event) => setFieldValue(field.fieldKey, event.target.value)}
-												placeholder={field.placeholder || ""}
-												disabled={submitting}
-											/>
-										) : null}
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            Completa los campos requeridos para generar y descargar el PDF.
+          </DialogDescription>
+        </DialogHeader>
 
-										{field.type === "date" ? (
-											<Input
-												id={field.fieldKey}
-												type="date"
-												value={String(value ?? "")}
-												onChange={(event) => setFieldValue(field.fieldKey, event.target.value)}
-												disabled={submitting}
-											/>
-										) : null}
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Cargando configuración del documento...</p>
+        ) : requestError ? (
+          <p className="text-sm text-destructive">{requestError}</p>
+        ) : (
+          <form className="space-y-5" onSubmit={handleSubmit} onKeyDown={handleFormKeyDown}>
+            {isSuperAdmin ? (
+              <div className="grid gap-2">
+                <Label>Usuario</Label>
+                <Select
+                  value={selectedUserId}
+                  onValueChange={setSelectedUserId}
+                  disabled={!documentDetails || loadingUsers || submitting}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={loadingUsers ? "Cargando usuarios..." : "Selecciona un usuario"}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user._id} value={user._id}>
+                        {user.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
-										{field.type === "textarea" ? (
-											<textarea
-												id={field.fieldKey}
-												value={String(value ?? "")}
-												onChange={(event) => setFieldValue(field.fieldKey, event.target.value)}
-												placeholder={field.placeholder || ""}
-												disabled={submitting}
-												rows={4}
-												className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-24 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-											/>
-										) : null}
+            {hasFields ? (
+              sections.map((section, sectionIndex) => (
+                <section className="rounded-lg border p-4" key={`${section.title}-${sectionIndex}`}>
+                  <div className="mb-4 border-b pb-3">
+                    <h3 className="text-base font-semibold">{section.title}</h3>
+                    {section.description ? (
+                      <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
+                    ) : null}
+                  </div>
 
-										{field.type === "select" ? (
-											<Select
-												value={String(value ?? "")}
-												onValueChange={(nextValue) => setFieldValue(field.fieldKey, nextValue)}
-												disabled={submitting}
-											>
-												<SelectTrigger id={field.fieldKey}>
-													<SelectValue placeholder={field.placeholder || "Selecciona una opcion"} />
-												</SelectTrigger>
-												<SelectContent>
-													{(field.options || []).map((option) => (
-														<SelectItem key={`${field.fieldKey}-${String(option.value)}`} value={String(option.value)}>
-															{option.label}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										) : null}
+                  <div className="space-y-4">
+                    {section.fields.map((field) => {
+                      const value = values[field.fieldKey]
+                      const error = fieldErrors[field.fieldKey]
 
-										{field.type === "checkbox" ? (
-											<div className="flex items-center gap-2">
-												<Checkbox
-													id={field.fieldKey}
-													checked={Boolean(value)}
-													onCheckedChange={(checked) => setFieldValue(field.fieldKey, checked === true)}
-													disabled={submitting}
-												/>
-												<Label htmlFor={field.fieldKey}>{field.placeholder || field.tag}</Label>
-											</div>
-										) : null}
+                      return (
+                        <div className="grid gap-2" key={field.fieldKey}>
+                          <Label htmlFor={field.fieldKey}>
+                            {field.tag}
+                            {field.required ? <span className="text-destructive"> *</span> : null}
+                          </Label>
 
-										{error ? <p className="text-sm text-destructive">{error}</p> : null}
-									</div>
-								)
-							})
-						) : (
-							<p className="text-sm text-muted-foreground">
-								Este documento no requiere datos adicionales. Puedes generar el PDF directamente.
-							</p>
-						)}
+                          {field.type === "text" ? (
+                            <Input
+                              id={field.fieldKey}
+                              value={String(value ?? "")}
+                              onChange={(event) => setFieldValue(field.fieldKey, event.target.value)}
+                              placeholder={field.placeholder || ""}
+                              disabled={submitting}
+                            />
+                          ) : null}
 
-						<DialogFooter>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => {
-									handleOpenChange(false)
-									resetModalState()
-								}}
-								disabled={submitting}
-							>
-								Cancelar
-							</Button>
-							<Button type="submit" disabled={submitting}>
-								{submitting ? "Generando..." : "Generar y descargar"}
-							</Button>
-						</DialogFooter>
-					</form>
-				)}
-			</DialogContent>
-		</Dialog>
-	)
+                          {field.type === "number" ? (
+                            <Input
+                              id={field.fieldKey}
+                              type="number"
+                              value={String(value ?? "")}
+                              onChange={(event) => setFieldValue(field.fieldKey, event.target.value)}
+                              placeholder={field.placeholder || ""}
+                              disabled={submitting}
+                            />
+                          ) : null}
+
+                          {field.type === "date" ? (
+                            <Input
+                              id={field.fieldKey}
+                              type="date"
+                              value={String(value ?? "")}
+                              onChange={(event) => setFieldValue(field.fieldKey, event.target.value)}
+                              disabled={submitting}
+                            />
+                          ) : null}
+
+                          {field.type === "textarea" ? (
+                            <textarea
+                              id={field.fieldKey}
+                              value={String(value ?? "")}
+                              onChange={(event) => setFieldValue(field.fieldKey, event.target.value)}
+                              placeholder={field.placeholder || ""}
+                              disabled={submitting}
+                              rows={4}
+                              className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-24 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                          ) : null}
+
+                          {field.type === "select" ? (
+                            <Select
+                              value={String(value ?? "")}
+                              onValueChange={(nextValue) => setFieldValue(field.fieldKey, nextValue)}
+                              disabled={submitting}
+                            >
+                              <SelectTrigger id={field.fieldKey}>
+                                <SelectValue placeholder={field.placeholder || "Selecciona una opción"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(field.options || []).map((option) => (
+                                  <SelectItem key={`${field.fieldKey}-${String(option.value)}`} value={String(option.value)}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : null}
+
+                          {field.type === "checkbox" ? (
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={field.fieldKey}
+                                checked={Boolean(value)}
+                                onCheckedChange={(checked) => setFieldValue(field.fieldKey, checked === true)}
+                                disabled={submitting}
+                              />
+                              <Label htmlFor={field.fieldKey}>{field.placeholder || field.tag}</Label>
+                            </div>
+                          ) : null}
+
+                          {field.type === "yes_no_comment" ? (
+                            <div className="space-y-3 rounded-md border p-3">
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  type="button"
+                                  variant={(value as YesNoValue | undefined)?.answer === "SI" ? "default" : "outline"}
+                                  onClick={() => {
+                                    const current = (value as YesNoValue | undefined) ?? { answer: "NO", comment: "" }
+                                    setFieldValue(field.fieldKey, { ...current, answer: "SI" })
+                                  }}
+                                  disabled={submitting}
+                                >
+                                  Si
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant={(value as YesNoValue | undefined)?.answer === "NO" ? "default" : "outline"}
+                                  onClick={() => {
+                                    const current = (value as YesNoValue | undefined) ?? { answer: "NO", comment: "" }
+                                    setFieldValue(field.fieldKey, { ...current, answer: "NO" })
+                                  }}
+                                  disabled={submitting}
+                                >
+                                  No
+                                </Button>
+                              </div>
+
+                              <textarea
+                                value={(value as YesNoValue | undefined)?.comment ?? ""}
+                                onChange={(event) => {
+                                  const current = (value as YesNoValue | undefined) ?? { answer: "NO", comment: "" }
+                                  setFieldValue(field.fieldKey, { ...current, comment: event.target.value })
+                                }}
+                                placeholder={field.yesNoConfig?.commentPlaceholder || "Observaciones..."}
+                                disabled={submitting}
+                                rows={3}
+                                className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-20 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                              />
+                            </div>
+                          ) : null}
+
+                          {field.type === "string_list" ? (
+                            <div className="space-y-3 rounded-md border p-3">
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  value={listDrafts[field.fieldKey] ?? ""}
+                                  onChange={(event) => setListDraftValue(field.fieldKey, event.target.value)}
+                                  placeholder={field.placeholder || "Escribe un elemento"}
+                                  disabled={submitting}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => addStringListItem(field.fieldKey)}
+                                  disabled={submitting || !String(listDrafts[field.fieldKey] ?? "").trim()}
+                                >
+                                  <PlusCircleIcon className="size-4" />
+                                  Agregar elemento
+                                </Button>
+                              </div>
+
+                              <div className="space-y-2">
+                                {(Array.isArray(value) ? (value as string[]) : []).map((item, itemIndex) => (
+                                  <div
+                                    key={`${field.fieldKey}-${itemIndex}`}
+                                    className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2"
+                                  >
+                                    <p className="text-sm">{item}</p>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="shrink-0 text-destructive hover:text-destructive"
+                                    onClick={() => removeStringListItem(field.fieldKey, itemIndex)}
+                                    disabled={submitting}
+                                  >
+                                    <Trash2Icon className="size-4" />
+                                  </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </section>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Este documento no requiere datos adicionales. Puedes generar el PDF directamente.
+              </p>
+            )}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  handleOpenChange(false)
+                  resetModalState()
+                }}
+                disabled={submitting}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Generando..." : "Generar y descargar"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
 }

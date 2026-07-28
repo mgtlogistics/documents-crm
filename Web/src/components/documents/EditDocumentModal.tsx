@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react"
-import { PlusCircleIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, PlusCircleIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { toast } from "react-toastify"
 import api from "@/utils/api"
 
@@ -23,15 +23,26 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type FieldType = "text" | "number" | "date" | "select" | "checkbox" | "textarea"
+type FieldType =
+  | "text"
+  | "number"
+  | "date"
+  | "select"
+  | "checkbox"
+  | "textarea"
+  | "yes_no_comment"
+  | "string_list"
 
 type ApiUserRole = "client" | "company"
 
 interface FieldOption {
   label: string
   value: string | number | boolean
+}
+
+interface YesNoConfig {
+  commentPlaceholder: string
+  commentRequired: boolean
 }
 
 interface FieldConfig {
@@ -41,6 +52,13 @@ interface FieldConfig {
   required: boolean
   placeholder: string
   options: FieldOption[]
+  yesNoConfig?: YesNoConfig
+}
+
+interface SectionConfig {
+  title: string
+  description: string
+  fields: FieldConfig[]
 }
 
 interface DocumentForm {
@@ -49,6 +67,13 @@ interface DocumentForm {
   downloadEndpoint: string
   status: boolean
   userType: ApiUserRole
+  structureTitle: string
+}
+
+interface StructurePayload {
+  title?: string
+  sections?: SectionConfig[]
+  fields?: FieldConfig[]
 }
 
 interface DocumentDetails {
@@ -58,39 +83,107 @@ interface DocumentDetails {
   downloadEndpoint: string
   status: boolean
   userType: ApiUserRole
-  documentStructureId?: {
-    fields?: FieldConfig[]
-  }
+  documentStructureId?: StructurePayload
 }
 
 interface StructureResponse {
   document: DocumentDetails
-  structure?: {
-    fields?: FieldConfig[]
-  }
+  structure?: StructurePayload
 }
 
 const FIELD_TYPES: { label: string; value: FieldType }[] = [
   { label: "Texto", value: "text" },
-  { label: "Número", value: "number" },
+  { label: "Numero", value: "number" },
   { label: "Fecha", value: "date" },
   { label: "Lista desplegable", value: "select" },
-  { label: "Casilla de verificación", value: "checkbox" },
-  { label: "Área de texto", value: "textarea" },
+  { label: "Casilla de verificacion", value: "checkbox" },
+  { label: "Area de texto", value: "textarea" },
+  { label: "Si/No con observaciones", value: "yes_no_comment" },
+  { label: "Lista dinamica de texto", value: "string_list" },
 ]
 
-function emptyField(): FieldConfig {
-  return { fieldKey: "", tag: "", type: "text", required: false, placeholder: "", options: [] }
+function emptyYesNoConfig(): YesNoConfig {
+  return {
+    commentPlaceholder: "Observaciones...",
+    commentRequired: false,
+  }
 }
 
-function normalizeField(field: Partial<FieldConfig>): FieldConfig {
+function emptyField(): FieldConfig {
   return {
-    fieldKey: field.fieldKey ?? "",
-    tag: field.tag ?? "",
-    type: field.type ?? "text",
-    required: field.required ?? false,
-    placeholder: field.placeholder ?? "",
-    options: field.options ?? [],
+    fieldKey: "",
+    tag: "",
+    type: "text",
+    required: false,
+    placeholder: "",
+    options: [],
+  }
+}
+
+function emptySection(sectionNumber: number): SectionConfig {
+  return {
+    title: `Seccion ${sectionNumber}`,
+    description: "",
+    fields: [emptyField()],
+  }
+}
+
+function normalizeField(field?: Partial<FieldConfig>): FieldConfig {
+  return {
+    fieldKey: field?.fieldKey ?? "",
+    tag: field?.tag ?? "",
+    type: field?.type ?? "text",
+    required: Boolean(field?.required),
+    placeholder: field?.placeholder ?? "",
+    options: field?.options ?? [],
+    yesNoConfig:
+      field?.type === "yes_no_comment"
+        ? {
+            commentPlaceholder: field?.yesNoConfig?.commentPlaceholder ?? "Observaciones...",
+            commentRequired: Boolean(field?.yesNoConfig?.commentRequired),
+          }
+        : undefined,
+  }
+}
+
+function normalizeSectionsFromResponse(
+  documentName: string,
+  structure?: StructurePayload,
+  fallbackStructure?: StructurePayload
+): { title: string; sections: SectionConfig[] } {
+  const source = structure ?? fallbackStructure
+  const structureTitle = source?.title ?? documentName ?? "Estructura de documento"
+
+  if (Array.isArray(source?.sections) && source.sections.length > 0) {
+    return {
+      title: structureTitle,
+      sections: source.sections.map((section, index) => ({
+        title: section.title || `Seccion ${index + 1}`,
+        description: section.description || "",
+        fields:
+          section.fields && section.fields.length > 0
+            ? section.fields.map((field) => normalizeField(field))
+            : [emptyField()],
+      })),
+    }
+  }
+
+  if (Array.isArray(source?.fields) && source.fields.length > 0) {
+    return {
+      title: structureTitle,
+      sections: [
+        {
+          title: "Seccion general",
+          description: "",
+          fields: source.fields.map((field) => normalizeField(field)),
+        },
+      ],
+    }
+  }
+
+  return {
+    title: structureTitle,
+    sections: [emptySection(1)],
   }
 }
 
@@ -120,8 +213,9 @@ export default function EditDocumentModal({
     downloadEndpoint: "",
     status: true,
     userType: "client",
+    structureTitle: "",
   })
-  const [fields, setFields] = useState<FieldConfig[]>([emptyField()])
+  const [sections, setSections] = useState<SectionConfig[]>([emptySection(1)])
 
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : internalOpen
@@ -142,8 +236,9 @@ export default function EditDocumentModal({
       downloadEndpoint: "",
       status: true,
       userType: "client",
+      structureTitle: "",
     })
-    setFields([emptyField()])
+    setSections([emptySection(1)])
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -167,8 +262,11 @@ export default function EditDocumentModal({
 
       try {
         const { data } = await api.get<StructureResponse>(`/api/documents/${documentId}`)
-        const responseFields = data.structure?.fields ?? data.document.documentStructureId?.fields ?? []
-        const normalizedFields = responseFields.map((field) => normalizeField(field))
+        const normalizedStructure = normalizeSectionsFromResponse(
+          data.document.name,
+          data.structure,
+          data.document.documentStructureId
+        )
 
         setDocumentDetails(data.document)
         setForm({
@@ -177,8 +275,9 @@ export default function EditDocumentModal({
           downloadEndpoint: data.document.downloadEndpoint,
           status: data.document.status,
           userType: data.document.userType ?? "client",
+          structureTitle: normalizedStructure.title,
         })
-        setFields(normalizedFields.length > 0 ? normalizedFields : [emptyField()])
+        setSections(normalizedStructure.sections)
       } catch (err: unknown) {
         const message =
           (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
@@ -193,72 +292,218 @@ export default function EditDocumentModal({
     loadDocument()
   }, [documentId, open])
 
-  function handleFormChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const { name, value, type, checked } = e.target
+  function handleFormChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const { name, value, type, checked } = event.target
     setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }))
   }
 
+  function updateFieldType(field: FieldConfig, nextType: FieldType): FieldConfig {
+    return {
+      ...field,
+      type: nextType,
+      options: nextType === "select" ? field.options ?? [] : [],
+      yesNoConfig:
+        nextType === "yes_no_comment"
+          ? field.yesNoConfig ?? emptyYesNoConfig()
+          : undefined,
+    }
+  }
+
+  function handleSectionChange(sectionIndex: number, key: "title" | "description", value: string) {
+    setSections((prev) =>
+      prev.map((section, currentIndex) =>
+        currentIndex === sectionIndex ? { ...section, [key]: value } : section
+      )
+    )
+  }
+
+  function addSection() {
+    setSections((prev) => [...prev, emptySection(prev.length + 1)])
+  }
+
+  function removeSection(sectionIndex: number) {
+    setSections((prev) => prev.filter((_, index) => index !== sectionIndex))
+  }
+
+  function moveSection(sectionIndex: number, direction: -1 | 1) {
+    setSections((prev) => {
+      const nextIndex = sectionIndex + direction
+      if (nextIndex < 0 || nextIndex >= prev.length) {
+        return prev
+      }
+
+      const next = [...prev]
+      const current = next[sectionIndex]
+      next[sectionIndex] = next[nextIndex]
+      next[nextIndex] = current
+      return next
+    })
+  }
+
+  function addField(sectionIndex: number) {
+    setSections((prev) =>
+      prev.map((section, currentIndex) =>
+        currentIndex === sectionIndex
+          ? { ...section, fields: [...section.fields, emptyField()] }
+          : section
+      )
+    )
+  }
+
+  function removeField(sectionIndex: number, fieldIndex: number) {
+    setSections((prev) =>
+      prev.map((section, currentIndex) =>
+        currentIndex === sectionIndex
+          ? { ...section, fields: section.fields.filter((_, index) => index !== fieldIndex) }
+          : section
+      )
+    )
+  }
+
+  function moveField(sectionIndex: number, fieldIndex: number, direction: -1 | 1) {
+    setSections((prev) =>
+      prev.map((section, currentSectionIndex) => {
+        if (currentSectionIndex !== sectionIndex) {
+          return section
+        }
+
+        const nextIndex = fieldIndex + direction
+        if (nextIndex < 0 || nextIndex >= section.fields.length) {
+          return section
+        }
+
+        const nextFields = [...section.fields]
+        const current = nextFields[fieldIndex]
+        nextFields[fieldIndex] = nextFields[nextIndex]
+        nextFields[nextIndex] = current
+
+        return { ...section, fields: nextFields }
+      })
+    )
+  }
+
   function handleFieldChange(
-    index: number,
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    sectionIndex: number,
+    fieldIndex: number,
+    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) {
-    const { name, value, type } = e.target
-    const checked = (e.target as HTMLInputElement).checked
-    setFields((prev) =>
-      prev.map((field, fieldIndex) =>
-        fieldIndex === index ? { ...field, [name]: type === "checkbox" ? checked : value } : field
+    const { name, value, type } = event.target
+    const checked = (event.target as HTMLInputElement).checked
+
+    setSections((prev) =>
+      prev.map((section, currentSectionIndex) =>
+        currentSectionIndex === sectionIndex
+          ? {
+              ...section,
+              fields: section.fields.map((field, currentFieldIndex) => {
+                if (currentFieldIndex !== fieldIndex) return field
+
+                if (name === "type") {
+                  return updateFieldType(field, value as FieldType)
+                }
+
+                return { ...field, [name]: type === "checkbox" ? checked : value }
+              }),
+            }
+          : section
       )
     )
   }
 
-  function addField() {
-    setFields((prev) => [...prev, emptyField()])
-  }
-
-  function removeField(index: number) {
-    setFields((prev) => prev.filter((_, fieldIndex) => fieldIndex !== index))
-  }
-
-  function addOption(fieldIndex: number) {
-    setFields((prev) =>
-      prev.map((field, index) =>
-        index === fieldIndex ? { ...field, options: [...field.options, { label: "", value: "" }] } : field
+  function addOption(sectionIndex: number, fieldIndex: number) {
+    setSections((prev) =>
+      prev.map((section, currentSectionIndex) =>
+        currentSectionIndex === sectionIndex
+          ? {
+              ...section,
+              fields: section.fields.map((field, currentFieldIndex) =>
+                currentFieldIndex === fieldIndex
+                  ? { ...field, options: [...field.options, { label: "", value: "" }] }
+                  : field
+              ),
+            }
+          : section
       )
     )
   }
 
-  function removeOption(fieldIndex: number, optionIndex: number) {
-    setFields((prev) =>
-      prev.map((field, index) =>
-        index === fieldIndex
-          ? { ...field, options: field.options.filter((_, currentIndex) => currentIndex !== optionIndex) }
-          : field
+  function removeOption(sectionIndex: number, fieldIndex: number, optionIndex: number) {
+    setSections((prev) =>
+      prev.map((section, currentSectionIndex) =>
+        currentSectionIndex === sectionIndex
+          ? {
+              ...section,
+              fields: section.fields.map((field, currentFieldIndex) =>
+                currentFieldIndex === fieldIndex
+                  ? {
+                      ...field,
+                      options: field.options.filter((_, currentOptionIndex) => currentOptionIndex !== optionIndex),
+                    }
+                  : field
+              ),
+            }
+          : section
       )
     )
   }
 
   function handleOptionChange(
+    sectionIndex: number,
     fieldIndex: number,
     optionIndex: number,
     key: "label" | "value",
     value: string
   ) {
-    setFields((prev) =>
-      prev.map((field, index) =>
-        index === fieldIndex
+    setSections((prev) =>
+      prev.map((section, currentSectionIndex) =>
+        currentSectionIndex === sectionIndex
           ? {
-              ...field,
-              options: field.options.map((option, currentIndex) =>
-                currentIndex === optionIndex ? { ...option, [key]: value } : option
+              ...section,
+              fields: section.fields.map((field, currentFieldIndex) =>
+                currentFieldIndex === fieldIndex
+                  ? {
+                      ...field,
+                      options: field.options.map((option, currentOptionIndex) =>
+                        currentOptionIndex === optionIndex ? { ...option, [key]: value } : option
+                      ),
+                    }
+                  : field
               ),
             }
-          : field
+          : section
       )
     )
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  function updateYesNoConfig(
+    sectionIndex: number,
+    fieldIndex: number,
+    patch: Partial<YesNoConfig>
+  ) {
+    setSections((prev) =>
+      prev.map((section, currentSectionIndex) =>
+        currentSectionIndex === sectionIndex
+          ? {
+              ...section,
+              fields: section.fields.map((field, currentFieldIndex) =>
+                currentFieldIndex === fieldIndex
+                  ? {
+                      ...field,
+                      yesNoConfig: {
+                        ...(field.yesNoConfig ?? emptyYesNoConfig()),
+                        ...patch,
+                      },
+                    }
+                  : field
+              ),
+            }
+          : section
+      )
+    )
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault()
     if (!documentDetails) return
 
     setRequestError(null)
@@ -267,7 +512,7 @@ export default function EditDocumentModal({
     try {
       await api.put(`/api/documents/${documentDetails._id}/document`, {
         ...form,
-        fields,
+        sections,
       })
 
       toast.success("Documento actualizado correctamente")
@@ -288,11 +533,11 @@ export default function EditDocumentModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
 
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Edita los datos del documento y los campos que utiliza el formulario de generación de PDF.
+            Edita los datos del documento y la estructura por secciones del formulario.
           </DialogDescription>
         </DialogHeader>
 
@@ -310,28 +555,12 @@ export default function EditDocumentModal({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="name">Nombre</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    placeholder="Ej: Convenio de Seguridad OEA"
-                    value={form.name}
-                    onChange={handleFormChange}
-                    disabled={submitting}
-                    required
-                  />
+                  <Input id="name" name="name" value={form.name} onChange={handleFormChange} disabled={submitting} required />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="key">Clave única (key)</Label>
-                  <Input
-                    id="key"
-                    name="key"
-                    placeholder="Ej: CONVENIO_SEGURIDAD_V1"
-                    value={form.key}
-                    onChange={handleFormChange}
-                    disabled={submitting}
-                    required
-                  />
+                  <Label htmlFor="key">Clave unica (key)</Label>
+                  <Input id="key" name="key" value={form.key} onChange={handleFormChange} disabled={submitting} required />
                 </div>
 
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
@@ -339,11 +568,21 @@ export default function EditDocumentModal({
                   <Input
                     id="downloadEndpoint"
                     name="downloadEndpoint"
-                    placeholder="Ej: /api/clients/convenio-seguridad"
                     value={form.downloadEndpoint}
                     onChange={handleFormChange}
                     disabled={submitting}
                     required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                  <Label htmlFor="structureTitle">Titulo de la estructura</Label>
+                  <Input
+                    id="structureTitle"
+                    name="structureTitle"
+                    value={form.structureTitle}
+                    onChange={handleFormChange}
+                    disabled={submitting}
                   />
                 </div>
 
@@ -358,8 +597,8 @@ export default function EditDocumentModal({
                       <SelectValue placeholder="Selecciona un tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="client">Persona Física</SelectItem>
-                      <SelectItem value="company">Empresa</SelectItem>
+                      <SelectItem value="client">Persona Fisica</SelectItem>
+                      <SelectItem value="company">Persona Moral</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -382,28 +621,105 @@ export default function EditDocumentModal({
             <section className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  Campos del formulario
+                  Secciones del formulario
                 </h3>
-                <Button type="button" variant="outline" size="sm" onClick={addField} disabled={submitting}>
-                  <PlusCircleIcon />
-                  Agregar campo
+                <Button type="button" variant="outline" size="sm" onClick={addSection} disabled={submitting}>
+                  <PlusCircleIcon className="size-4" />
+                  Agregar seccion
                 </Button>
               </div>
 
               <div className="flex flex-col gap-4">
-                {fields.map((field, index) => (
-                  <FieldRow
-                    key={index}
-                    index={index}
-                    field={field}
-                    onChange={handleFieldChange}
-                    onRemove={() => removeField(index)}
-                    onAddOption={() => addOption(index)}
-                    onRemoveOption={(optionIndex) => removeOption(index, optionIndex)}
-                    onOptionChange={(optionIndex, key, value) => handleOptionChange(index, optionIndex, key, value)}
-                    canRemove={fields.length > 1}
-                    disabled={submitting}
-                  />
+                {sections.map((section, sectionIndex) => (
+                  <div key={sectionIndex} className="rounded-lg border p-4">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">Seccion #{sectionIndex + 1}</span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveSection(sectionIndex, -1)}
+                          disabled={sectionIndex === 0 || submitting}
+                        >
+                          <ArrowUpIcon className="size-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveSection(sectionIndex, 1)}
+                          disabled={sectionIndex === sections.length - 1 || submitting}
+                        >
+                          <ArrowDownIcon className="size-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => removeSection(sectionIndex)}
+                          disabled={sections.length === 1 || submitting}
+                        >
+                          <Trash2Icon className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Titulo de seccion</Label>
+                        <Input
+                          value={section.title}
+                          onChange={(event) => handleSectionChange(sectionIndex, "title", event.target.value)}
+                          placeholder="Ej: Datos notariales"
+                          disabled={submitting}
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Descripcion</Label>
+                        <Input
+                          value={section.description}
+                          onChange={(event) => handleSectionChange(sectionIndex, "description", event.target.value)}
+                          placeholder="Descripcion opcional"
+                          disabled={submitting}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-muted-foreground">Campos</h4>
+                      <Button type="button" variant="outline" size="sm" onClick={() => addField(sectionIndex)} disabled={submitting}>
+                        <PlusCircleIcon className="size-4" />
+                        Agregar campo
+                      </Button>
+                    </div>
+
+                    <div className="mt-3 flex flex-col gap-3">
+                      {section.fields.map((field, fieldIndex) => (
+                        <FieldRow
+                          key={`${sectionIndex}-${fieldIndex}`}
+                          index={fieldIndex}
+                          field={field}
+                          disabled={submitting}
+                          onChange={(event) => handleFieldChange(sectionIndex, fieldIndex, event)}
+                          onRemove={() => removeField(sectionIndex, fieldIndex)}
+                          onMoveUp={() => moveField(sectionIndex, fieldIndex, -1)}
+                          onMoveDown={() => moveField(sectionIndex, fieldIndex, 1)}
+                          canMoveUp={fieldIndex > 0}
+                          canMoveDown={fieldIndex < section.fields.length - 1}
+                          canRemove={section.fields.length > 1}
+                          onAddOption={() => addOption(sectionIndex, fieldIndex)}
+                          onRemoveOption={(optionIndex) => removeOption(sectionIndex, fieldIndex, optionIndex)}
+                          onOptionChange={(optionIndex, key, value) =>
+                            handleOptionChange(sectionIndex, fieldIndex, optionIndex, key, value)
+                          }
+                          onYesNoConfigChange={(patch) => updateYesNoConfig(sectionIndex, fieldIndex, patch)}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>
@@ -423,72 +739,74 @@ export default function EditDocumentModal({
   )
 }
 
-// ─── FieldRow sub-component ───────────────────────────────────────────────────
-
 interface FieldRowProps {
   index: number
   field: FieldConfig
-  onChange: (index: number, e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void
+  disabled?: boolean
+  onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void
   onRemove: () => void
+  onMoveUp: () => void
+  onMoveDown: () => void
+  canMoveUp: boolean
+  canMoveDown: boolean
   canRemove: boolean
   onAddOption: () => void
   onRemoveOption: (optionIndex: number) => void
   onOptionChange: (optionIndex: number, key: "label" | "value", value: string) => void
-  disabled?: boolean
+  onYesNoConfigChange: (patch: Partial<YesNoConfig>) => void
 }
 
 function FieldRow({
   index,
   field,
+  disabled,
   onChange,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   canRemove,
   onAddOption,
   onRemoveOption,
   onOptionChange,
-  disabled,
+  onYesNoConfigChange,
 }: FieldRowProps) {
   return (
     <div className="relative flex flex-col gap-3 rounded-lg border p-4">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">Campo #{index + 1}</span>
-        {canRemove ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onRemove}
-            className="text-destructive hover:text-destructive"
-            disabled={disabled}
-          >
-            <Trash2Icon className="size-4" />
+        <div className="flex items-center gap-1">
+          <Button type="button" variant="ghost" size="sm" onClick={onMoveUp} disabled={!canMoveUp || disabled}>
+            <ArrowUpIcon className="size-4" />
           </Button>
-        ) : null}
+          <Button type="button" variant="ghost" size="sm" onClick={onMoveDown} disabled={!canMoveDown || disabled}>
+            <ArrowDownIcon className="size-4" />
+          </Button>
+          {canRemove ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onRemove}
+              className="text-destructive hover:text-destructive"
+              disabled={disabled}
+            >
+              <Trash2Icon className="size-4" />
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label>Clave del campo (fieldKey)</Label>
-          <Input
-            name="fieldKey"
-            placeholder="Ej: nombre_representante"
-            value={field.fieldKey}
-            onChange={(e) => onChange(index, e)}
-            disabled={disabled}
-            required
-          />
+          <Input name="fieldKey" value={field.fieldKey} onChange={onChange} disabled={disabled} required />
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label>Etiqueta (tag)</Label>
-          <Input
-            name="tag"
-            placeholder="Ej: Nombre del representante"
-            value={field.tag}
-            onChange={(e) => onChange(index, e)}
-            disabled={disabled}
-            required
-          />
+          <Input name="tag" value={field.tag} onChange={onChange} disabled={disabled} required />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -496,7 +814,7 @@ function FieldRow({
           <select
             name="type"
             value={field.type}
-            onChange={(e) => onChange(index, e)}
+            onChange={onChange}
             disabled={disabled}
             className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -510,13 +828,7 @@ function FieldRow({
 
         <div className="flex flex-col gap-1.5">
           <Label>Placeholder</Label>
-          <Input
-            name="placeholder"
-            placeholder="Texto de ayuda en el input"
-            value={field.placeholder}
-            onChange={(e) => onChange(index, e)}
-            disabled={disabled}
-          />
+          <Input name="placeholder" value={field.placeholder} onChange={onChange} disabled={disabled} />
         </div>
 
         <div className="flex items-center gap-2 sm:col-span-2">
@@ -524,7 +836,7 @@ function FieldRow({
             name="required"
             type="checkbox"
             checked={field.required}
-            onChange={(e) => onChange(index, e)}
+            onChange={onChange}
             disabled={disabled}
             className="size-4 rounded border"
           />
@@ -532,29 +844,55 @@ function FieldRow({
         </div>
       </div>
 
+      {field.type === "yes_no_comment" ? (
+        <div className="mt-1 flex flex-col gap-2 border-t pt-2">
+          <span className="text-xs font-medium text-muted-foreground">Configuracion Si/No con observaciones</span>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label>Placeholder de observaciones</Label>
+              <Input
+                value={field.yesNoConfig?.commentPlaceholder ?? "Observaciones..."}
+                onChange={(event) => onYesNoConfigChange({ commentPlaceholder: event.target.value })}
+                disabled={disabled}
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-6">
+              <input
+                type="checkbox"
+                checked={Boolean(field.yesNoConfig?.commentRequired)}
+                onChange={(event) => onYesNoConfigChange({ commentRequired: event.target.checked })}
+                disabled={disabled}
+                className="size-4 rounded border"
+              />
+              <Label>Observacion obligatoria</Label>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {field.type === "select" ? (
         <div className="mt-1 flex flex-col gap-2 border-t pt-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">Opciones del desplegable</span>
             <Button type="button" variant="outline" size="sm" onClick={onAddOption} disabled={disabled}>
               <PlusIcon className="size-3" />
-              Opción
+              Opcion
             </Button>
           </div>
 
           {field.options.map((option, optionIndex) => (
             <div key={optionIndex} className="flex items-center gap-2">
               <Input
-                placeholder="Etiqueta (lo que ve el usuario)"
+                placeholder="Etiqueta"
                 value={option.label}
-                onChange={(e) => onOptionChange(optionIndex, "label", e.target.value)}
+                onChange={(event) => onOptionChange(optionIndex, "label", event.target.value)}
                 disabled={disabled}
                 required
               />
               <Input
-                placeholder="Valor (lo que procesa el código)"
+                placeholder="Valor"
                 value={String(option.value)}
-                onChange={(e) => onOptionChange(optionIndex, "value", e.target.value)}
+                onChange={(event) => onOptionChange(optionIndex, "value", event.target.value)}
                 disabled={disabled}
                 required
               />

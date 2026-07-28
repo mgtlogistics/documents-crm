@@ -39,7 +39,7 @@ const EXPENSE_CATEGORY_LABELS = {
   taxes: "Impuestos",
   bank_fees: "Comisiones bancarias",
   transport: "Transporte",
-  training: "Capacitacion",
+  training: "Capacitación",
   withdrawal: "Retiro de efectivo",
   other: "Otros",
 };

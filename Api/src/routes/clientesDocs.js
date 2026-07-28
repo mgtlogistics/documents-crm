@@ -20,10 +20,25 @@ import { generarCuestionarioInicialNecesidades } from '../documents/Cuestionario
 import { generarDocumentosRequeridosCliente } from '../documents/DocumentosRequeridosCliente.js'
 import { generarPoliticaSeguridadInformatica } from '../documents/PoliticaSeguridadInformatica.js'
 import { generarPoliticaTrabajoForzoso } from '../documents/PoliticaTrabajoForzoso.js'
+import { generarContratoServiciosProfesionales } from '../documents/contratoServicios/main.js'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es.js'
 
 dayjs.locale('es')
+
+const getLegalRepresentativeFullName = (company = {}) => {
+  const representative = company?.legalRepresentative || {}
+  const fullName = [
+    representative.firstName,
+    representative.paternalLastName,
+    representative.maternalLastName,
+  ]
+    .filter((part) => typeof part === 'string' && part.trim().length > 0)
+    .join(' ')
+    .trim()
+
+  return fullName || company?.legalRepresentativeName || 'No aplica'
+}
 
 // Ruta para descargar el documento
 router.get('/convenio-seguridad', async (req, res) => {
@@ -54,7 +69,7 @@ router.post('/convenio-seguridad', async (req, res) => {
     const userData = await Staff.findById(req.body.userId)
     const fecha = dayjs().format('D [de] MMMM [de] YYYY').split(' de ')
     const doc = generarConvenioSeguridad({
-      nombreRepresentante: userData.company.legalRepresentativeName,
+      nombreRepresentante: getLegalRepresentativeFullName(userData?.company),
       nombreEmpresa: userData.company.socialReason,
       dia: fecha[0],
       mes: fecha[1],
@@ -283,6 +298,30 @@ router.get('/carta-protesta-persona-moral', async (req, res) => {
   }
 })
 
+router.post('/carta-protesta', async (req, res) => {
+
+  try {
+    const userData = await Staff.findById(req.body.userId)
+    const data = {
+      ...req.body,
+      user: userData,
+    }
+
+    const doc = generarCartaProtesta(data)
+
+    const fileName = 'carta-protesta.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    return res.status(500).json({
+      message: 'No fue posible generar la carta de protesta',
+      error: error.message,
+    })
+  }
+})
+
 router.post('/carta-protesta-persona-moral', async (req, res) => {
   try {
     const userData = await Staff.findById(req.body.userId)
@@ -340,6 +379,23 @@ router.get('/contrato-mve', async (req, res) => {
   }
 })
 
+router.get('/contrato-servicios-profesionales', async (req, res) => {
+  try {
+    const doc = generarContratoServiciosProfesionales()
+
+    const fileName = 'contrato-servicios-profesionales.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    return res.status(500).json({
+      message: 'No fue posible generar el contrato de servicios profesionales',
+      error: error.message,
+    })
+  }
+})
+
 router.get('/cuestionario-estandares-seguridad', async (req, res) => {
   try {
 
@@ -358,8 +414,30 @@ router.get('/cuestionario-estandares-seguridad', async (req, res) => {
   }
 })
 
+router.post('/contrato-servicios-profesionales', async (req, res) => {
+  try {
+    const userData = await Staff.findById(req.body.userId)
+    const data = {
+      ...req.body,
+      user: userData,
+    }
+    console.log(data)
+    const doc = generarContratoServiciosProfesionales(data)
+
+    const fileName = 'contrato-servicios-profesionales.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    return res.status(500).json({
+      message: 'No fue posible generar el contrato de servicios profesionales',
+      error: error.message,
+    })
+  }
+})
+
 router.post('/cuestionario-estandares-seguridad', async (req, res) => {
-  console.log(123)
   try {
     const userData = await Staff.findById(req.body.userId)
     const data = {

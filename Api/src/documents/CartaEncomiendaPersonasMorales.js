@@ -3,10 +3,38 @@ import dayjs from 'dayjs'
 import createStylizedParagraph from './createStylizedParagraph.js'
 import fs from "fs"
 import { getFrontendImg } from '../utils/public.utils.js'
+import drawPlaceOfIssuance from './utils/drawPlaceOfIssuance.js'
+import drawLetterhead from './utils/drawLetterhead.js'
+
+const getLegalRepresentativeFullName = (company = {}) => {
+  const representative = company?.legalRepresentative || {}
+  const fullName = [
+    representative.firstName,
+    representative.paternalLastName,
+    representative.maternalLastName,
+  ]
+    .filter((part) => typeof part === 'string' && part.trim().length > 0)
+    .join(' ')
+    .trim()
+
+  return fullName || company?.legalRepresentativeName || 'No llenado'
+}
 
 export function generarCartaEncomiendaPersonasMorales(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const AUTOCOMP = '(autocompletado)'
+  const top = doc.page.margins.top
+  const company = data?.user?.company || {}
+  const powerOfAttorney = company?.powerOfAttorney || {}
+  const powerNotary = powerOfAttorney?.notary || {}
+  const legalRepresentativeName = getLegalRepresentativeFullName(company)
+  const powerNumber = powerOfAttorney?.number || company?.powerOfAttorneyNumber || 'No llenado'
+  const powerVolume = powerOfAttorney?.volume || company?.powerOfAttorneyVolume || 'No llenado'
+  const powerDate = powerOfAttorney?.date || company?.powerOfAttorneyDate
+  const notaryNumber = powerNotary?.number || company?.notaryNumber || 'No llenado'
+  const notaryName = powerNotary?.name || company?.notaryName || 'No llenado'
+  const notaryCity = powerNotary?.city || company?.notaryCity || 'No llenado'
+  const notaryState = powerNotary?.state || company?.notaryState || 'No llenado'
 
   const paragraphOptions = {
     fontSize: 10,
@@ -14,23 +42,15 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     align: 'justify'
   }
 
-  const left = doc.page.margins.left
-  if (data.user?.letterhead && fs.existsSync(getFrontendImg(data.user?.letterhead))) {
-    doc.image(getFrontendImg(data.user?.letterhead), left, doc.page.margins.top - 30, { height: 25 })
-  }
-
+ 
   doc
     .font('Helvetica-Bold')
     .fontSize(14)
     .text('CARTA ENCOMIENDA', { align: 'center' })
     .moveDown(0.6)
 
-  // HEADER - Right aligned date
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(10.5)
-    .text(` ${data.city}, ${data.state}, ${data.country}  | ${dayjs().format('DD/MMMM/YYYY')}`, { align: 'right' })
-    .moveDown(0.8)
+    drawPlaceOfIssuance(doc, data, { y: top + 28})
+    drawLetterhead(doc, data)
 
   doc
     .font('Helvetica-Bold')
@@ -69,21 +89,21 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     { text: ', personalidad que acredito conforme al ' },
     { text: 'Poder Notarial número', isBold: true },
     { text: ' ' },
-    { text: data.user.company.powerOfAttorneyNumber || 'No llenado', isUnderlined: true },
+    { text: powerNumber, isUnderlined: true },
     { text: ', ' },
     { text: 'volumen', isBold: true },
     { text: ' ' },
-    { text: data.user.company.powerOfAttorneyVolume || 'No llenado', isUnderlined: true },
+    { text: powerVolume, isUnderlined: true },
     { text: ', de fecha ' },
-    { text: dayjs(data.user.company.powerOfAttorneyDate).format('DD/MM/YYYY') || 'No llenado', isUnderlined: true },
+    { text: dayjs(powerDate).format('DD/MM/YYYY') || 'No llenado', isUnderlined: true },
     { text: ', otorgado ante la fe del ' },
     { text: 'Notario Público número', isBold: true },
     { text: ' ' },
-    { text: data.user.company.notaryNumber || 'No llenado', isUnderlined: true },
+    { text: notaryNumber, isUnderlined: true },
     { text: ', Lic. ' },
-    { text: data.user.company.notaryName || 'No llenado', isUnderlined: true },
+    { text: notaryName, isUnderlined: true },
     { text: ', de la Ciudad de ' },
-    { text: `${data.user.company.notaryCity || 'No llenado'}, ${data.user.company.notaryState || 'No llenado'}`, isUnderlined: true },
+    { text: `${notaryCity}, ${notaryState}`, isUnderlined: true },
     { text: ', manifiesto lo siguiente:' }
   ];
 
@@ -92,7 +112,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
 
   const encomiendaParagraph2 = [
     { text: 'En términos de los Artículos 40, 59, fracción III, segundo párrafo y 81 de la Ley Aduanera vigente, en relación con el artículo 81 del Reglamento de la Ley Aduanera en vigor, procedo encomendar y conferir el encargo a su favor, en su carácter de ' },
-    { text: 'titular de la Patente Aduanal número 1623,', isBold: true },
+    { text: 'titular de la Patente Aduanal número 1623, ', isBold: true },
     { text: ' para que a nombre y por cuenta exclusiva de mi representada, realice el ' },
     { text: 'despacho aduanero', isBold: true },
     { text: ' de las mercancías de ' },
@@ -107,10 +127,10 @@ export function generarCartaEncomiendaPersonasMorales(data) {
 
   const encomiendaParagraph3 = [
     { text: 'Reconozco y acepto expresamente que, conforme a la legislación aduanera vigente y sus reformas, la ' },
-    { text: 'responsabilidad sobre la veracidad, exactitud, integridad y legalidad', isBold: true },
+    { text: 'responsabilidad sobre la veracidad, exactitud, integridad y legalidad ', isBold: true },
     { text: ' de la información y documentación proporcionada corresponde ' },
-    { text: 'exclusivamente a mi mandante en su calidad de importador,', isBold: true },
-    { text: ' por lo que:' }
+    { text: ' exclusivamente a mi mandante en su calidad de importador,', isBold: true },
+    { text: ' por lo que: ' }
   ];
   createStylizedParagraph(doc, encomiendaParagraph3, paragraphOptions)
   doc.moveDown(0.8)
@@ -120,9 +140,9 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     [
       { text: 'a)', isBold: true },
       { text: ' Bajo protesta de decir verdad, mi mandante declara que ' },
-      { text: 'no existe relación de parentesco', isBold: true },
+      { text: 'no existe relación de parentesco ', isBold: true },
       { text: ' por consanguinidad en línea recta sin limitación de grado, ni en línea colateral hasta el cuarto grado, ni por afinidad, con el Agente Aduanal, ni con sus socios, accionistas, representantes legales o personal que intervenga directa o indirectamente en el despacho aduanero, por lo que manifiesta no encontrarse en ninguno de los supuestos de ' },
-      { text: 'vinculación o conflicto de interés', isBold: true },
+      { text: 'vinculación o conflicto de interés ', isBold: true },
       { text: ' previstos en la Ley Aduanera y demás disposiciones aplicables.' },
 
     ],
@@ -130,7 +150,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     [
       { text: 'b) ', isBold: true },
       { text: 'Mi mandante se obliga a proporcionar al Agente Aduanal ' },
-      { text: 'información completa, veraz, exacta, lícita y comprobable,', isBold: true },
+      { text: 'información completa, veraz, exacta, lícita y comprobable, ', isBold: true },
       { text: ' incluyendo de manera enunciativa más no limitativa: facturas comerciales, contratos, órdenes de compra, documentos de transporte, comprobantes de pago, certificados de origen, permisos, avisos, padrones, registros, cumplimiento de NOM, regulaciones y restricciones no arancelarias, así como cualquier otro documento exigido por la legislación fiscal y aduanera.' }
     ],
 
@@ -140,7 +160,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
       { text: 'Mi mandante se obliga a notificar de manera inmediata y por escrito al Agente Aduanal cualquier ' },
       { text: 'cambio de domicilio fiscal, razón social, régimen fiscal, socios, accionistas, beneficiario controlador,', isBold: true },
       { text: ' así como modificaciones en autorizaciones, registros o permisos emitidos por el ' },
-      { text: 'SAT, la Agencia Nacional de Aduanas de México, la Secretaría de Economía', isBold: true },
+      { text: 'SAT, la Agencia Nacional de Aduanas de México, la Secretaría de Economía ', isBold: true },
       { text: ' o cualquier otra autoridad competente, reconociendo que cualquier omisión será responsabilidad exclusiva de mi representada, eximiendo al Agente Aduanal de cualquier consecuencia fiscal o aduanera derivada.' }
     ],
 
@@ -148,7 +168,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     [
       { text: 'd) ', isBold: true },
       { text: 'Reconozco que la ' },
-      { text: 'descripción de la mercancía, valor en aduana, origen, cantidad, naturaleza, uso y demás elementos declarados en el pedimento', isBold: true },
+      { text: 'descripción de la mercancía, valor en aduana, origen, cantidad, naturaleza, uso y demás elementos declarados en el pedimento ', isBold: true },
       { text: ' derivan de la información proporcionada por mi representada, liberando expresamente al Agente Aduanal de cualquier responsabilidad por errores u omisiones derivadas de información incorrecta o incompleta.' }
     ],
 
@@ -156,9 +176,9 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     [
       { text: 'e) ', isBold: true },
       { text: 'Mi mandante se compromete a proporcionar oportunamente la ' },
-      { text: 'Manifestación de Valor Electrónica', isBold: true },
+      { text: 'Manifestación de Valor Electrónica ', isBold: true },
       { text: ' y sus anexos, reconociendo que la elaboración, firma, transmisión y veracidad de dicha manifestación es ' },
-      { text: 'obligación exclusiva del importador,', isBold: true },
+      { text: 'obligación exclusiva del importador, ', isBold: true },
       { text: ' deslindando al Agente Aduanal de cualquier contingencia derivada de su contenido.' }
     ],
 
@@ -166,7 +186,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     [
       { text: 'f) ', isBold: true },
       { text: 'Manifiesto que es responsabilidad exclusiva de mi representada el cumplimiento de las ' },
-      { text: 'regulaciones y restricciones no arancelarias,', isBold: true },
+      { text: 'regulaciones y restricciones no arancelarias, ', isBold: true },
       { text: ' incluyendo Normas Oficiales Mexicanas, permisos, avisos, certificaciones, dictámenes, autorizaciones o resoluciones emitidas por autoridades competentes, obligándome a entregar la documentación soporte correspondiente y liberando al Agente Aduanal de cualquier responsabilidad por incumplimiento.' }
     ],
 
@@ -174,11 +194,11 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     [
       { text: 'g) ', isBold: true },
       { text: 'Mi mandante declara bajo protesta de decir verdad que ' },
-      { text: 'no se encuentra listado', isBold: true },
+      { text: 'no se encuentra listado ', isBold: true },
       { text: ' en los supuestos previstos en los artículos ' },
-      { text: '49 Bis fracción X, 69 con excepción de la fracción IV, 69-B cuarto párrafo y 69-B Bis noveno párrafo del Código Fiscal de la Federación vigente,', isBold: true },
+      { text: '49 Bis fracción X, 69 con excepción de la fracción IV, 69-B cuarto párrafo y 69-B Bis noveno párrafo del Código Fiscal de la Federación vigente, ', isBold: true },
       { text: ' ni mantiene relación con contribuyentes incluidos en dichos listados, obligándose a mantener ' },
-      { text: 'indemne', isBold: true },
+      { text: 'indemne ', isBold: true },
       { text: ' al Agente Aduanal frente a cualquier contingencia que derive del incumplimiento de esta declaración.' }
     ],
 
@@ -186,7 +206,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     [
       { text: 'h) ', isBold: true },
       { text: 'Declaro bajo protesta de decir verdad que mi representada cuenta con ' },
-      { text: 'existencia real, infraestructura, capacidad operativa, personal, activos y materialidad suficiente,', isBold: true },
+      { text: ' existencia real, infraestructura, capacidad operativa, personal, activos y materialidad suficiente, ', isBold: true },
       { text: ' y que ha identificado correctamente al ' },
       { text: 'beneficiario controlador,', isBold: true },
       { text: ' conforme a la normativa vigente.' }
@@ -194,7 +214,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     [
       { text: 'i) ', isBold: true },
       { text: 'En consecuencia, cualquier contingencia relacionada con ' },
-      { text: 'operaciones inexistentes, simuladas, carentes de materialidad o sin razón de negocios', isBold: true },
+      { text: 'operaciones inexistentes, simuladas, carentes de materialidad o sin razón de negocios ', isBold: true },
       { text: ' será responsabilidad exclusiva de mi representada, deslindando totalmente al Agente Aduanal de cualquier responsabilidad administrativa, fiscal, aduanera, penal o de cualquier otra índole.' }
     ],
 
@@ -202,7 +222,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     [
       { text: 'j) ', isBold: true },
       { text: 'Reconozco que el Agente Aduanal actúa única y exclusivamente como ' },
-      { text: 'auxiliar en el despacho aduanero,', isBold: true },
+      { text: 'auxiliar en el despacho aduanero, ', isBold: true },
       { text: ' conforme a la Ley Aduanera, limitando su actuación a la información proporcionada por mi mandante.' }
     ],
 
@@ -210,7 +230,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     [
       { text: 'k) ', isBold: true },
       { text: 'En consecuencia, el Agente Aduanal queda ' },
-      { text: 'expresa y plenamente deslindado', isBold: true },
+      { text: 'expresa y plenamente deslindado ', isBold: true },
       { text: ' de cualquier responsabilidad presente o futura que derive de la falsedad, inexactitud, omisión o insuficiencia de la información proporcionada.' }
     ],
 
@@ -222,7 +242,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     // Párrafo de descripción de mercancía
     [
       { text: 'La ' },
-      { text: 'descripción de la mercancía,', isBold: true },
+      { text: 'descripción de la mercancía, ', isBold: true },
       { text: ' la documentación soporte y las instrucciones específicas para cada operación serán proporcionadas al Agente Aduanal ' },
       { text: 'de manera expresa y por escrito.', isBold: true }
     ],
@@ -255,7 +275,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
 
   doc
     .font('Helvetica')
-    .text(data.user.company.legalRepresentativeName, { align: 'center' })
+    .text(legalRepresentativeName, { align: 'center' })
 
   doc.end()
   return doc

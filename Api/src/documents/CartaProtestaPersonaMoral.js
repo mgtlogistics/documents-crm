@@ -4,12 +4,44 @@ import createStylizedParagraph from './createStylizedParagraph.js'
 
 import fs from "fs"
 import { getFrontendImg } from '../utils/public.utils.js'
+import drawLetterhead from './utils/drawLetterhead.js'
+import drawPlaceOfIssuance from './utils/drawPlaceOfIssuance.js'
+import toRoman from './utils/toRoman.js'
+
+const getLegalRepresentativeFullName = (company = {}) => {
+  const representative = company?.legalRepresentative || {}
+  const fullName = [
+    representative.firstName,
+    representative.paternalLastName,
+    representative.maternalLastName,
+  ]
+    .filter((part) => typeof part === 'string' && part.trim().length > 0)
+    .join(' ')
+    .trim()
+
+  return fullName || company?.legalRepresentativeName || 'No llenado'
+}
 
 export function generarCartaProtestaPersonaMoral(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const pageBottom = () => doc.page.height - doc.page.margins.bottom
   const contentLeft = doc.page.margins.left
   const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right
+  const company = data?.user?.company || {}
+  const legalRepresentativeName = getLegalRepresentativeFullName(company)
+  const powerOfAttorney = company?.powerOfAttorney || {}
+  const powerNotary = powerOfAttorney?.notary || {}
+  const publicDeed = company?.publicDeed || {}
+  const deedNumber = publicDeed?.number || company?.scripture || 'No llenado'
+  const deedVolume = publicDeed?.volume || company?.powerOfAttorneyVolume || 'No llenado'
+  const powerNumber = powerOfAttorney?.number || company?.powerOfAttorneyNumber || 'No llenado'
+  const powerDate = powerOfAttorney?.date || company?.powerOfAttorneyDate
+  const notaryNumber = powerNotary?.number || company?.notaryNumber || 'No llenado'
+  const notaryName = powerNotary?.name || company?.notaryName || 'No llenado'
+  const notaryCity = powerNotary?.city || company?.notaryCity || 'No llenado'
+  const notaryState = powerNotary?.state || company?.notaryState || 'No llenado'
+
+  console.log(data)
 
   const ensureSpace = (requiredHeight = 40) => {
     if (doc.y + requiredHeight > pageBottom()) {
@@ -62,9 +94,8 @@ export function generarCartaProtestaPersonaMoral(data) {
   doc.x = contentLeft + 175;
 
   const left = doc.page.margins.left
-  if (data.user?.letterhead && fs.existsSync(getFrontendImg(data.user?.letterhead))) {
-    doc.image(getFrontendImg(data.user?.letterhead), left, doc.page.margins.top -30, { height: 25 })
-  }
+
+
 
   doc
     .font('Helvetica-Bold')
@@ -74,14 +105,11 @@ export function generarCartaProtestaPersonaMoral(data) {
     .text('RGCE para 2026.', { width: contentWidth - 175, align: 'right' })
     .moveDown(1.2)
 
+  drawPlaceOfIssuance(doc, data, { y: 120 + doc.currentLineHeight() })
+  drawLetterhead(doc, data)
+
   // Reseteamos al margen izquierdo para la fecha
   doc.x = contentLeft;
-
-   doc
-     .font('Helvetica-Bold')
-     .fontSize(10.5)
-     .text(` ${data.city}, ${data.state}, ${data.country}  | ${dayjs().format('DD/MMMM/YYYY')}`, { align: 'right' })
-     .moveDown(0.8)
 
   // --- CORRECCIÓN "A QUIEN CORRESPONDA" ---
   // Forzamos que regrese al extremo izquierdo de la página
@@ -106,7 +134,7 @@ export function generarCartaProtestaPersonaMoral(data) {
     doc,
     [
       { text: 'El que suscribe ' },
-      { text: data.user.company.legalRepresentativeName, isBold: true },
+      { text: legalRepresentativeName, isBold: true },
       { text: ', en mi carácter de ' },
       { text: 'representante legal', isBold: true },
       { text: ' de ' },
@@ -116,12 +144,12 @@ export function generarCartaProtestaPersonaMoral(data) {
       { text: ', y con domicilio fiscal en ' },
       { text: domicilioFiscal, isBold: true },
       { text: ', acreditando mi personalidad mediante ' },
-      { text: `Poder Notarial ${data.user.company.powerOfAttorneyNumber}`, isBold: true },
+      { text: `Poder Notarial ${powerNumber}`, isBold: true },
       { text: ' otorgado mediante ' },
-      { text: `escritura pública número ${data.user.company.scripture}, volumen ${data.user.company.powerOfAttorneyVolume},`, isBold: true },
-      { text: ` de fecha ${dayjs(data.user.company.powerOfAttorneyDate).format('DD/MM/YYYY')}, pasada ante la fe del `, isBold: true },
-      { text: `Notario Público número ${data.user.company.notaryNumber},`, isBold: true },
-      { text: ` Lic. ${data.user.company.notaryName}, de la Ciudad de ${data.user.company.notaryCity}, ${data.user.company.notaryState}, con fundamento en lo dispuesto por la ` },
+      { text: `escritura pública número ${deedNumber}, volumen ${deedVolume}, `, isBold: true },
+      { text: ` de fecha ${dayjs(powerDate).format('DD/MM/YYYY')}, pasada ante la fe del `, isBold: true },
+      { text: `Notario Público número ${notaryNumber},`, isBold: true },
+      { text: ` Lic. ${notaryName}, de la Ciudad de ${notaryCity}, ${notaryState}, con fundamento en lo dispuesto por la ` },
       { text: 'regla 1.4.14, fracción VII de las Reglas Generales de Comercio Exterior para 2026, manifiesto bajo protesta de decir verdad en nombre de mi representada', isBold: true },
       { text: ' lo siguiente:' }
     ],
@@ -144,7 +172,8 @@ export function generarCartaProtestaPersonaMoral(data) {
     )
     .moveDown(0.3)
 
-  drawInmuebleLines()
+  doc.text(data.place_description)
+    .moveDown(0.5)
 
   // Reseteamos X tras salir de las líneas de inmueble
   doc.x = contentLeft
@@ -158,8 +187,7 @@ export function generarCartaProtestaPersonaMoral(data) {
     )
     .moveDown(1.15)
 
-  // Inciso B
-  ensureSpace(360)
+
   doc
     .font('Helvetica')
     .fontSize(13)
@@ -171,7 +199,10 @@ export function generarCartaProtestaPersonaMoral(data) {
     )
     .moveDown(0.35)
 
-  drawRomanAssetsLines()
+  data?.material.forEach((element, i) => {
+    const text = toRoman(i + 1) + ". " + element
+    doc.font('Helvetica').fontSize(12).text(text, contentLeft + 20, doc.y, { width: contentWidth - 20, align: 'justify' }).moveDown(0.35)
+  })
 
   // Reseteamos X tras las líneas romanas
   doc.x = contentLeft
@@ -240,7 +271,7 @@ export function generarCartaProtestaPersonaMoral(data) {
 
   doc.font('Helvetica').text('_________________________________', { align: 'center', width: contentWidth }).moveDown(0.7)
 
-  doc.font('Helvetica-Bold').fontSize(12.5).text(data.user.company.legalRepresentativeName, { align: 'center', width: contentWidth }).moveDown(0.35)
+  doc.font('Helvetica-Bold').fontSize(12.5).text(legalRepresentativeName, { align: 'center', width: contentWidth }).moveDown(0.35)
   doc.font('Helvetica-Bold').fontSize(12.5).text(`RFC ${data.user.company.rfc}`, { align: 'center', width: contentWidth }).moveDown(0.35)
   doc.font('Helvetica-Bold').fontSize(12.5).text('Representante Legal', { align: 'center', width: contentWidth })
 

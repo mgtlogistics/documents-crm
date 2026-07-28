@@ -7,7 +7,21 @@ const TEAL = '#1E5B6B'
 const BLACK = '#000000'
 const GRAY = '#6B7280'
 
-const PAGE_TOTAL = 2
+const PAGE_TOTAL = 4
+
+function getLegalRepresentativeFullName(company = {}) {
+  const representative = company?.legalRepresentative || {}
+  const fullName = [
+    representative.firstName,
+    representative.paternalLastName,
+    representative.maternalLastName,
+  ]
+    .filter((part) => typeof part === 'string' && part.trim().length > 0)
+    .join(' ')
+    .trim()
+
+  return fullName || company?.legalRepresentativeName || 'No aplica'
+}
 
 function contentWidth(doc) {
   return doc.page.width - doc.page.margins.left - doc.page.margins.right
@@ -171,10 +185,11 @@ function drawCoverHeader(doc, data) {
   }
 
   y += drawField('Nombre de la persona o empresa', toDisplayText(data?.user?.company?.socialReason), y)
-  y += drawField('Nombre representante legal', toDisplayText(data?.user?.company?.legalRepresentativeName), y)
-  y += drawField('Nombre quien respondió la verificación', toDisplayText(data?.fillerFormName), y)
+  y += drawField('Nombre representante legal', toDisplayText(getLegalRepresentativeFullName(data?.user?.company)), y)
+  y += drawField('Nombre quien respondió la verificación', toDisplayText(data?.formFillerName), y)
   y += drawField('En caso de contar con certificación de seguridad indicar el numero de certificado', toDisplayText(data?.certificationNumber), y)
   y += drawField('Vigencia de la certificación', toDisplayDate(data?.certificationValidity), y)
+  y += drawField('Emitido por', toDisplayText(data?.certificationIssuer), y)
 
   doc
     .font('Helvetica')
@@ -221,18 +236,49 @@ function drawMainTableHeader(doc, title, widths) {
   doc.y = y + 18
 }
 
-function drawMainSection(doc, title, rows, resultText, state) {
+function normalizeAnswer(answer) {
+  const normalized = String(answer || '')
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+  if (normalized === 'SI') return 'SI'
+  if (normalized === 'NO') return 'NO'
+  return ''
+}
+
+function formatValue(value) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return '0'
+  return Number.isInteger(numeric) ? String(numeric) : numeric.toFixed(2)
+}
+
+function drawMainSection(doc, title, rows, state) {
   const left = doc.page.margins.left
   const widths = [30, 42, 340, 34, 34, 160]
   const tableWidth = widths.reduce((a, b) => a + b, 0)
+  let sectionScore = 0
+  let sectionMaxScore = 0
 
   ensureSpace(doc, 60, state)
   drawMainTableHeader(doc, title, widths)
 
   rows.forEach((row) => {
+    const answer = normalizeAnswer(row?.data?.answer)
+    const comment = String(row?.data?.comment || '').trim()
+    const valorNumerico = Number(row?.valor)
+    const valor = Number.isFinite(valorNumerico) ? valorNumerico : 0
+
+    sectionMaxScore += valor
+    if (answer === 'SI') {
+      sectionScore += valor
+    }
+
     doc.font('Helvetica').fontSize(7.2)
     const rowTextHeight = doc.heightOfString(row.pregunta, { width: widths[2] - 6 })
-    const rowH = Math.max(18, rowTextHeight + 7)
+    const obsTextHeight = doc.heightOfString(comment, { width: widths[5] - 6 })
+    const rowH = Math.max(18, Math.max(rowTextHeight + 7, obsTextHeight + 7))
     ensureSpace(doc, rowH + 2, state)
 
     let x = left
@@ -247,7 +293,7 @@ function drawMainSection(doc, title, rows, resultText, state) {
     x += widths[0]
 
     doc.rect(x, y, widths[1], rowH).strokeColor(BLACK).lineWidth(0.5).stroke()
-    doc.font('Helvetica').fontSize(8).fillColor(BLACK).text(String(row.valor), x + 1, y + 4, {
+    doc.font('Helvetica').fontSize(8).fillColor(BLACK).text(formatValue(row.valor), x + 1, y + 4, {
       width: widths[1] - 2,
       align: 'center',
       lineBreak: false,
@@ -262,13 +308,43 @@ function drawMainSection(doc, title, rows, resultText, state) {
     x += widths[2]
 
     doc.rect(x, y, widths[3], rowH).strokeColor(BLACK).lineWidth(0.5).stroke()
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(10)
+      .fillColor(BLACK)
+      .text(answer === 'SI' ? 'X' : '', x + 1, y + 4, {
+        width: widths[3] - 2,
+        align: 'center',
+        lineBreak: false,
+      })
     x += widths[3]
+
     doc.rect(x, y, widths[4], rowH).strokeColor(BLACK).lineWidth(0.5).stroke()
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(10)
+      .fillColor(BLACK)
+      .text(answer === 'NO' ? 'X' : '', x + 1, y + 4, {
+        width: widths[4] - 2,
+        align: 'center',
+        lineBreak: false,
+      })
     x += widths[4]
+
     doc.rect(x, y, widths[5], rowH).strokeColor(BLACK).lineWidth(0.5).stroke()
+    doc.font('Helvetica').fontSize(7.2).fillColor(BLACK).text(comment, x + 3, y + 3, {
+      width: widths[5] - 6,
+      align: 'left',
+    })
 
     doc.y = y + rowH
   })
+
+  if (!state.mainScore) {
+    state.mainScore = { earned: 0, max: 0 }
+  }
+  state.mainScore.earned += sectionScore
+  state.mainScore.max += sectionMaxScore
 
   ensureSpace(doc, 24, state)
   doc.rect(left, doc.y, tableWidth - 120, 20).strokeColor(BLACK).lineWidth(0.5).stroke()
@@ -278,13 +354,47 @@ function drawMainSection(doc, title, rows, resultText, state) {
     align: 'left',
     lineBreak: false,
   })
-  doc.font('Helvetica').fontSize(10).text(resultText, left + tableWidth - 58, doc.y + 5, {
+  doc.font('Helvetica').fontSize(10).text(`${formatValue(sectionScore)} de ${formatValue(sectionMaxScore)}`, left + tableWidth - 58, doc.y - 9, {
     width: 50,
     align: 'right',
     lineBreak: false,
   })
 
   doc.y += 26
+}
+
+function drawMainTotalResult(doc, state) {
+  if (!state.mainScore) {
+    return
+  }
+
+  const left = doc.page.margins.left
+  const width = contentWidth(doc)
+  const resultW = 150
+
+  ensureSpace(doc, 28, state)
+
+  doc.rect(left, doc.y, width - resultW, 22).strokeColor(BLACK).lineWidth(0.8).stroke()
+  doc.rect(left + width - resultW, doc.y, resultW, 22).strokeColor(BLACK).lineWidth(0.8).stroke()
+
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(BLACK).text('Resultado final del cuestionario', left + 6, doc.y + 7, {
+    width: width - resultW - 12,
+    align: 'left',
+    lineBreak: false,
+  })
+
+  doc.font('Helvetica-Bold').fontSize(10).fillColor(BLACK).text(
+    `${formatValue(state.mainScore.earned)} de ${formatValue(state.mainScore.max)}`,
+    left + width - resultW + 6,
+    doc.y + 6,
+    {
+      width: resultW - 12,
+      align: 'right',
+      lineBreak: false,
+    }
+  )
+
+  doc.y += 28
 }
 
 function drawVerificationHeader(doc, title, widths) {
@@ -364,7 +474,7 @@ function drawConvenio(doc, data, state) {
     .fontSize(9)
     .fillColor(BLACK)
     .text(
-      'Nos comprometemos a mantener y seguir los estandares de seguridad en conjunto con la empresa para lograr la salvaguarda e integridad de la cadena de suministro. Asi mismo, a implementar las medidas con las que nuestra empresa no cuente para cumplir con los requisitos de seguridad.',
+      'Nos comprometemos a mantener y seguir los estándares de seguridad en conjunto con la empresa para lograr la salvaguarda e integridad de la cadena de suministro. Asi mismo, a implementar las medidas con las que nuestra empresa no cuente para cumplir con los requisitos de seguridad.',
       left,
       doc.y,
       { width, align: 'left' }
@@ -372,17 +482,17 @@ function drawConvenio(doc, data, state) {
   doc.y += 8
 
   const compromisos = [
-    '1. Analisis de riesgo.',
-    '2. Seguridad fisica.',
-    '3. Controles de acceso fisico.',
+    '1. Análisis de riesgo.',
+    '2. Seguridad física.',
+    '3. Controles de acceso físico.',
     '4. Socios comerciales.',
     '5. Seguridad de procesos.',
-    '6. Gestion aduanera.',
-    '7. Seguridad de vehiculos de carga, contenedores, remolques y semirremolques.',
+    '6. Gestión aduanera.',
+    '7. Seguridad de vehículos de carga, contenedores, remolques y semirremolques.',
     '8. Seguridad del personal.',
-    '9. Seguridad de la informacion y documentacion.',
-    '10. Capacitacion en seguridad y concientizacion.',
-    '11. Manejo e investigacion de incidentes.',
+    '9. Seguridad de la información y documentación.',
+    '10. Capacitación en seguridad y concientización.',
+    '11. Manejo e investigación de incidentes.',
   ]
 
   compromisos.forEach((item) => {
@@ -395,18 +505,18 @@ function drawConvenio(doc, data, state) {
   const lineWidth = 250
   const rightX = left + width - lineWidth
 
-  doc
-    .moveTo(left + 40, signY)
-    .lineTo(left + 40 + lineWidth, signY)
-    .lineWidth(0.8)
-    .strokeColor(BLACK)
-    .stroke()
-  doc
-    .moveTo(rightX, signY)
-    .lineTo(rightX + lineWidth, signY)
-    .lineWidth(0.8)
-    .strokeColor(BLACK)
-    .stroke()
+  // doc
+  //   .moveTo(left + 40, signY)
+  //   .lineTo(left + 40 + lineWidth, signY)
+  //   .lineWidth(0.8)
+  //   .strokeColor(BLACK)
+  //   .stroke()
+  // doc
+  //   .moveTo(rightX, signY)
+  //   .lineTo(rightX + lineWidth, signY)
+  //   .lineWidth(0.8)
+  //   .strokeColor(BLACK)
+  //   .stroke()
 
   doc.font('Helvetica').fontSize(9).fillColor(BLACK)
   doc.text(data.fillerFormName, left + 40, signY + 6, {
@@ -435,30 +545,28 @@ export function generarCuestionarioSeguridadSocioComercial(data) {
 
   drawMainSection(
     doc,
-    'Seguridad del traslado de mercancias',
+    'Seguridad del traslado de mercancías',
     [
-      { no: 1, valor: '10%', pregunta: 'Utiliza transportista con medidas de seguridad o certificacion en C-TPAT u OEA?' },
-      { no: 2, valor: '10%', pregunta: 'Se asegura de dar seguimiento o monitorear su recorrido por algun sistema GPS u otro mecanismo?' },
-      { no: 3, valor: '10%', pregunta: 'Se cerciora de que su transportista utilice candados de seguridad bajo la norma ISO 17712?' },
-      { no: 4, valor: '10%', pregunta: 'Conoce o designa la ruta de recorrido desde su origen al destino al transportista?' },
-      { no: 5, valor: '10%', pregunta: 'En caso de desvio de la ruta, tiene comunicacion con el transporte para conocer el motivo?' },
-      { no: 6, valor: '10%', pregunta: 'Cuenta con plan de contingencia en caso de contaminacion de la carga?' },
+      { no: 1, valor: 10, data: data.s1p1, pregunta: '¿Utiliza transportista con medidas de seguridad o certificación en C-TPAT u OEA?' },
+      { no: 2, valor: 10, data: data.s1p2, pregunta: '¿Se asegura de dar seguimiento o monitorear su recorrido por algún sistema GPS o algún otro mecanismo?' },
+      { no: 3, valor: 10, data: data.s1p3, pregunta: '¿Se cerciora de que su transportista utilice candados de seguridad bajo la Norma ISO 17712?' },
+      { no: 4, valor: 10, data: data.s1p4, pregunta: '¿Conoce o designa la ruta de recorrido desde su origen al destino al transportista?' },
+      { no: 5, valor: 10, data: data.s1p5, pregunta: '¿En caso de desvío de la ruta, tiene comunicación con el transporte para conocer el motivo?' },
+      { no: 6, valor: 10, data: data.s1p6, pregunta: '¿Cuenta con plan de contingencia en caso de contaminación de la carga?' },
     ],
-    '___ de 60',
     state
   )
 
   drawMainSection(
     doc,
-    'Informacion de la carga',
+    'Información de la carga',
     [
-      { no: 7, valor: '5%', pregunta: 'Cuenta con procedimientos para identificar, reportar y tratar discrepancias en carga y descarga de mercancia?' },
-      { no: 8, valor: '5%', pregunta: 'Asegura que la informacion electronica y documental del traslado y despacho sea legible, completa, exacta y protegida contra cambios o perdidas?' },
-      { no: 9, valor: '5%', pregunta: 'Se asegura de tener controlado el material de empaque y embalaje?' },
-      { no: 10, valor: '5%', pregunta: 'Utiliza revision K9 para asegurar el contenido de la carga libre de contaminacion?' },
-      { no: 11, valor: '5%', pregunta: 'Se asegura de verificar el contenido de cada paquete que envia?' },
+      { no: 7, valor: 5, data: data.s2p1, pregunta: '¿Cuenta con procedimientos para identificar, reportar y tratar las discrepancias de la carga y descarga de mercancía?' },
+      { no: 8, valor: 5, data: data.s2p2, pregunta: '¿Cuenta con procedimientos para asegurar que tanto la información electrónica y/o documental que es enviada por sus socios comerciales a partir de su solicitud de servicio durante el movimiento y el despacho del traslado de mercancía de la carga como la generada por cuenta propia sea legible, completa, exacta, oportuna y protegida contra cambios, perdidas o introducción de información errónea?' },
+      { no: 9, valor: 5, data: data.s2p3, pregunta: '¿Se asegura de tener controlado el material de empaque y embalaje?' },
+      { no: 10, valor: 5, data: data.s2p4, pregunta: '¿Utiliza revisión K9 para asegurar el contenido de la carga libre de contaminación?' },
+      { no: 11, valor: 5, data: data.s2p5, pregunta: '¿Se asegura de verificar el contenido de cada paquete que envía?' },
     ],
-    '___ de 25',
     state
   )
 
@@ -466,26 +574,25 @@ export function generarCuestionarioSeguridadSocioComercial(data) {
     doc,
     'Seguridad de la informacion',
     [
-      { no: 12, valor: '5%', pregunta: 'La informacion generada de la relacion comercial es resguardada bajo llave?' },
-      { no: 13, valor: '5%', pregunta: 'La informacion digital de la relacion comercial es respaldada con copia de seguridad?' },
-      { no: 14, valor: '5%', pregunta: 'Cuenta con programas antivirus y cortafuegos?' },
+      { no: 12, valor: 5, data: data.s3p1, pregunta: '¿La información generada de nuestra relación comercial es resguardada bajo llave?' },
+      { no: 13, valor: 5, data: data.s3p2, pregunta: '¿La información digital que se genera de nuestra relación comercial es respaldada con copia de seguridad?' },
+      { no: 14, valor: 5, data: data.s3p3, pregunta: '¿Cuenta con programas antivirus y cortafuegos?' },
     ],
-    '___ de 15',
     state
   )
 
   drawVerificationBlock(
     doc,
-    'Verificacion de indicadores de trabajo forzoso (observacion interna)',
+    'Verificación de indicadores de trabajo forzoso.  La siguiente sección no se cuestiona al socio comercial. Solo se responde por observación. ',
     [
       'Abuso de la vulnerabilidad',
-      'Engano',
-      'Restriccion de movimiento',
+      'Engaño',
+      'Restricción de movimiento',
       'Aislamiento',
-      'Violencia fisica y sexual',
-      'Intimidacion y amenazas',
-      'Retencion de documentos de identificacion',
-      'Retencion de salarios',
+      'Violencia física y sexual',
+      'Intimidación y amenazas',
+      'Retención de documentos de identificación',
+      'Retención de salarios',
       'Servidumbre por deudas',
       'Exceso de horas extras',
       'Condiciones de vida y trabajo abusivas',
@@ -495,21 +602,66 @@ export function generarCuestionarioSeguridadSocioComercial(data) {
 
   drawVerificationBlock(
     doc,
-    'Verificacion de indicadores para detectar clientes o proveedores no legitimos',
+    'Verificación indicadores para detectar clientes o proveedores que podrían no ser legítimos.  La siguiente sección no se cuestiona al socio comercial. Se verifica con responsable de socios comerciales y Documentadores o en su caso personal que tiene contacto con la empresa.',
     [
       'Realiza pagos en efectivo o solicita realizarlo',
       'Realiza pagos por encima de la tarifa estandar',
-      'Tiene poco conocimiento de la mercancia o no proporciona informacion tecnica',
+      'Tiene poco conocimiento de la mercancía o no proporciona información técnica',
       'Es evasivo',
-      'No proporciona informacion de contacto',
-      'Empresa de reciente creacion (menor a 1 mes)',
+      'No proporciona información de contacto',
+      'Empresa de reciente creación (menor a 1 mes)',
       'Se localiza su domicilio',
-      'Autoriza revisar mercancia para el previo',
+      'Autoriza revisar mercancía para el previo',
     ],
     state
   )
 
   drawConvenio(doc, data, state)
+
+  const W = doc.page.width - 144        // ancho útil
+  const FONT_NORMAL = "Helvetica"
+  const FONT_BOLD = "Helvetica-Bold"
+  const SIZE_TITLE = 14
+  const SIZE_BODY = 11
+  const SIZE_FOOTER = 8
+  const INDENT = 20
+  const lineY = doc.y + 40
+  const colGap = 28
+  const colWidth = (W - colGap) / 2
+  const colLeft = doc.page.margins.left
+  const colRight = colLeft + colWidth + colGap
+
+  // Líneas de firma estilizadas para mantener una apariencia limpia y uniforme.
+  doc
+    .save()
+    .lineWidth(1)
+    .strokeColor("#4b5563")
+    .moveTo(colLeft, lineY)
+    .lineTo(colLeft + colWidth, lineY)
+    .stroke()
+    .moveTo(colRight, lineY)
+    .lineTo(colRight + colWidth, lineY)
+    .stroke()
+    .restore()
+
+  const signatureTextY = lineY + 8
+
+  doc
+    .font(FONT_BOLD)
+    .fontSize(10)
+    .fillColor("#111827")
+    .text("Nombre y firma de quien responde visita", colLeft, signatureTextY, { width: colWidth, align: "center" })
+
+  const leftSignatureBottomY = doc.y
+
+  doc
+    .font(FONT_BOLD)
+    .text("Nombre y forma de verificador", colRight, signatureTextY, { width: colWidth, align: "center" })
+
+  const rightSignatureBottomY = doc.y
+  doc.y = Math.max(leftSignatureBottomY, rightSignatureBottomY) + 14
+
+
 
   drawFooter(doc, state.page, state.totalPages)
 

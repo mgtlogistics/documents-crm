@@ -27,29 +27,64 @@ const REQUIRED_PERSON_FIELDS = ['names', 'surnames', 'rfc'];
 const REQUIRED_COMPANY_FIELDS = [
   'socialReason',
   'rfc',
-  'legalRepresentativeName',
-  'legalRepresentativeRfc',
-  'legalRepresentativePosition',
+  'email',
   'formFillerName',
-  'scripture',
-  'notaryName',
-  'notaryNumber',
-  'notaryCity',
-  'notaryState',
-  'powerOfAttorneyNumber',
-  'powerOfAttorneyVolume',
-  'powerOfAttorneyDate',
+  'legalRepresentative.firstName',
+  'legalRepresentative.paternalLastName',
+  'legalRepresentative.rfc',
+  'legalRepresentative.position',
+  'publicDeed.number',
+  'publicDeed.volume',
+  'publicDeed.notary.number',
+  'publicDeed.notary.name',
+  'publicDeed.notary.city',
+  'publicDeed.notary.state',
+  'publicDeed.publicRegistry.mercantileFolio',
+  'powerOfAttorney.number',
+  'powerOfAttorney.volume',
+  'powerOfAttorney.notary.number',
+  'powerOfAttorney.notary.name',
+  'powerOfAttorney.notary.city',
+  'powerOfAttorney.notary.state',
 ];
 
+const isPlainObject = (value) => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Date);
+};
+
 const normalizeStringFields = (obj = {}) => {
+  if (!isPlainObject(obj)) {
+    return obj;
+  }
+
   return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+    Object.entries(obj).map(([key, value]) => {
+      if (typeof value === 'string') {
+        return [key, value.trim()];
+      }
+
+      if (isPlainObject(value)) {
+        return [key, normalizeStringFields(value)];
+      }
+
+      return [key, value];
+    })
   );
+};
+
+const getValueByPath = (obj = {}, path = '') => {
+  return path.split('.').reduce((accumulator, segment) => {
+    if (!isPlainObject(accumulator)) {
+      return undefined;
+    }
+
+    return accumulator[segment];
+  }, obj);
 };
 
 const getMissingFields = (obj = {}, requiredFields = []) => {
   return requiredFields.filter((field) => {
-    const value = obj[field];
+    const value = getValueByPath(obj, field);
 
     if (typeof value === 'string') {
       return value.trim().length === 0;

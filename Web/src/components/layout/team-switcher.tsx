@@ -25,6 +25,7 @@ export function TeamSwitcher() {
   const stores = access?.stores ?? []
   const selectedStore = activeStore ?? stores[0] ?? null
   const selectedStoreId = selectedStore?._id ?? selectedStore?.id ?? ""
+  const selectedStoreLabel = selectedStore ? selectedStore.name : "Selecciona una sede"
 
   return (
     <SidebarMenu>
@@ -33,28 +34,32 @@ export function TeamSwitcher() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
+              tooltip={selectedStoreLabel}
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <Home className="size-4" />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary/10 text-sidebar-primary">
+                <Home className="h-4 w-4" />
               </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{selectedStore?.name ?? "Sin sede"}</span>
-                <span className="truncate text-xs">{stores.length ? `${stores.length} sedes` : "Sin acceso"}</span>
+              <div className="grid min-w-0 flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                <span className="truncate font-medium">Sede activa</span>
+                <span className="truncate text-xs text-muted-foreground">{selectedStoreLabel}</span>
               </div>
-              <ChevronsUpDown className="ml-auto size-4" />
+              <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            className="w-64 rounded-lg"
             side={isMobile ? "bottom" : "right"}
             align="start"
-            sideOffset={4}
+            sideOffset={8}
           >
-            <DropdownMenuLabel>Sedes</DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={selectedStoreId} onValueChange={setActiveStore}>
+            <DropdownMenuLabel>Sedes disponibles</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={selectedStoreId}
+              onValueChange={setActiveStore}
+            >
               {stores.map((store) => {
-                const storeId = store._id ?? store.id
+                const storeId = store._id ?? store.id ?? ""
 
                 if (!storeId) {
                   return null

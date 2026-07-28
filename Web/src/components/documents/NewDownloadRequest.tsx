@@ -76,12 +76,13 @@ const DOCUMENT_FOLDERS: Array<{
       title: 'Pat. 1623 AA CESAR AUGUSTO SAVIÑON RUELAS',
       userType: 'company',
       docIds: [
-        '6a0d4e07b7f39dad350caa1c',
-        '6a0d1f78c3ee69d3ddcdae37',
-        '6a0d11d923d5c0b1dd085bc3',
-        '6a0bf8b4e85e516399e449ef',
-        '6a0bf3dd9ac4a39b23bd6468',
         '6a0be8cd881e88b2445f23a0',
+        '6a0bf3dd9ac4a39b23bd6468',
+        '6a0bf8b4e85e516399e449ef',
+        '6a0d11d923d5c0b1dd085bc3',
+        "6a6319b5a587d3fbf86e28bf",
+        '6a0d1f78c3ee69d3ddcdae37',
+        '6a0d4e07b7f39dad350caa1c',
       ],
     },
     {
@@ -266,8 +267,8 @@ export default function NewDownloadRequest({ onSuccess }: NewDownloadRequestProp
                 <SelectValue placeholder="Selecciona un tipo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={CLIENT_ROLE_ID}>Persona Fisica</SelectItem>
-                <SelectItem value={COMPANY_ROLE_ID}>Empresa</SelectItem>
+                <SelectItem value={CLIENT_ROLE_ID}>Persona Física</SelectItem>
+                <SelectItem value={COMPANY_ROLE_ID}>Persona Moral</SelectItem>
               </SelectContent>
             </Select>
           </div>

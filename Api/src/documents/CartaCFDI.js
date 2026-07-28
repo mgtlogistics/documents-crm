@@ -1,28 +1,38 @@
 import PDFDocument from 'pdfkit'
 import createStylizedParagraph from './createStylizedParagraph.js'
 import createSignatureBox from './createSignatureBox.js'
-import dayjs from 'dayjs'
 
-import fs from "fs"
-import { getFrontendImg } from '../utils/public.utils.js'
+import dayjs from 'dayjs'
+import drawLetterhead from './utils/drawLetterhead.js'
+import drawPlaceOfIssuance from './utils/drawPlaceOfIssuance.js'
+
+const getLegalRepresentativeFullName = (company = {}) => {
+  const representative = company?.legalRepresentative || {}
+  const fullName = [
+    representative.firstName,
+    representative.paternalLastName,
+    representative.maternalLastName,
+  ]
+    .filter((part) => typeof part === 'string' && part.trim().length > 0)
+    .join(' ')
+    .trim()
+
+  return fullName || company?.legalRepresentativeName || 'No llenado'
+}
 
 export function generarCartaCFDI(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const left = doc.page.margins.left
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right
   const AUTOCOMP = '(autocompletado)'
-  
-  if (data.user?.letterhead && fs.existsSync(getFrontendImg(data.user?.letterhead))) {
-    doc.image(getFrontendImg(data.user?.letterhead), left, doc.page.margins.top -30, { height: 25 })
-  }
-
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(10.5)
-    .text(` ${data.city}, ${data.state}, ${data.country}  | ${dayjs().format('DD/MMMM/YYYY')}`, { align: 'right' })
-    .moveDown(2)
+  const company = data?.user?.company || {}
+  const legalRepresentativeFullName = getLegalRepresentativeFullName(company)
 
 
+
+
+  drawPlaceOfIssuance(doc, data)
+  drawLetterhead(doc, data)
 
   doc
     .font('Helvetica-Bold')
@@ -79,7 +89,7 @@ export function generarCartaCFDI(data) {
     width: 280,
     height: 100,
     barHeight: 26,
-    text: data.user?.company.legalRepresentativeName || 'No llenado',
+    text: legalRepresentativeFullName,
   })
 
   doc.end()

@@ -7,7 +7,6 @@ import {
   SquareTerminal,
   User,
   CalendarDays,
-  // Users,
 
 
 } from "lucide-react"
@@ -34,21 +33,6 @@ const data = {
       icon: SquareTerminal,
       isActive: true,
       items: [
-        {
-          title: "Inicio",
-          url: "/",
-          moduleName: "Dashboard",
-        },
-        {
-          title: "Roles",
-          url: "/roles",
-          moduleName: "Roles",
-        },
-        {
-          title: "Páginas",
-          url: "/pages",
-          moduleName: "Pages",
-        },
         // {
         //   title: "Tiendas",
         //   url: "/stores",
@@ -57,6 +41,25 @@ const data = {
     },
   ],
   projects: [
+
+    {
+      name: "Inicio",
+      url: "/",
+      moduleName: "Dashboard",
+      icon: FileChartColumn,
+    },
+    {
+      name: "Roles",
+      url: "/roles",
+      icon: SquareTerminal,
+      moduleName: "Roles",
+    },
+    {
+      name: "Páginas",
+      url: "/pages",
+      icon: SquareTerminal,
+      moduleName: "Pages",
+    },
     {
       name: "Usuarios",
       url: "/staff",
@@ -70,9 +73,16 @@ const data = {
       moduleName: "Documents",
     },
     {
-      name: "Solicitudes",
+      name: "Documentación",
       url: "/requests",
       icon: CalendarDays,
+      moduleName: "Requests",
+    },
+    
+    {
+      name: "Información fiscal",
+      url: "/profileInformation",
+      icon: User,
       moduleName: "Requests",
     }
     // {
@@ -108,7 +118,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <TeamSwitcher />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        {/* <NavMain items={data.navMain} /> */}
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>

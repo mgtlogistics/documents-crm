@@ -5,6 +5,8 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
+  type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
@@ -20,7 +22,6 @@ import {
 } from '@/components/ui/table'
 import { PageHeader } from '@/components/global/PageHeader'
 import DownloadDocumentModal from '@/components/documents/DownloadDocumentModal'
-import NewDownloadRequest from '@/components/documents/NewDownloadRequest'
 import api from '@/utils/api'
 import { useAuthStore } from '@/store/authStore'
 import { FileText, RefreshCcw } from 'lucide-react'
@@ -169,6 +170,7 @@ interface DocumentRequestsTableProps {
 
 function DocumentRequestsTable({ documentRequests, onRefresh }: DocumentRequestsTableProps) {
   const [globalFilter, setGlobalFilter] = useState('')
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'document', desc: false }])
 
   const columns: ColumnDef<DocumentRequestItem>[] = [
     {
@@ -208,6 +210,7 @@ function DocumentRequestsTable({ documentRequests, onRefresh }: DocumentRequests
     {
       id: 'actions',
       header: 'Acciones',
+      enableSorting: false,
       cell: ({ row }) => (
         <DownloadDocumentModal
           documentId={row.original.documentId._id}
@@ -226,8 +229,10 @@ function DocumentRequestsTable({ documentRequests, onRefresh }: DocumentRequests
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    state: { globalFilter },
+    getSortedRowModel: getSortedRowModel(),
+    state: { globalFilter, sorting },
     onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
   })
 
   return (
@@ -250,8 +255,25 @@ function DocumentRequestsTable({ documentRequests, onRefresh }: DocumentRequests
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  <TableHead
+                    key={header.id}
+                    onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
+                    className={header.column.getCanSort() ? 'cursor-pointer select-none' : undefined}
+                  >
+                    {header.isPlaceholder ? null : (
+                      <div className="flex items-center gap-2">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getCanSort() ? (
+                          <span className="text-xs text-muted-foreground">
+                            {header.column.getIsSorted() === 'asc'
+                              ? '↑'
+                              : header.column.getIsSorted() === 'desc'
+                                ? '↓'
+                                : '↕'}
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
