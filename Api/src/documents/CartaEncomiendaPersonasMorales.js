@@ -23,7 +23,6 @@ const getLegalRepresentativeFullName = (company = {}) => {
 export function generarCartaEncomiendaPersonasMorales(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const AUTOCOMP = '(autocompletado)'
-  const top = doc.page.margins.top
   const company = data?.user?.company || {}
   const powerOfAttorney = company?.powerOfAttorney || {}
   const powerNotary = powerOfAttorney?.notary || {}
@@ -36,21 +35,27 @@ export function generarCartaEncomiendaPersonasMorales(data) {
   const notaryCity = powerNotary?.city || company?.notaryCity || 'No llenado'
   const notaryState = powerNotary?.state || company?.notaryState || 'No llenado'
 
+
+  const powerDateText = dayjs(powerDate).toDate().toLocaleDateString('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+
   const paragraphOptions = {
     fontSize: 10,
     width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
     align: 'justify'
   }
 
- 
+  drawLetterhead(doc, data)
+  drawPlaceOfIssuance(doc, data, { preserveCursor: false, y: 150 + doc.currentLineHeight() })
+
   doc
     .font('Helvetica-Bold')
     .fontSize(14)
-    .text('CARTA ENCOMIENDA', { align: 'center' })
-    .moveDown(0.6)
-
-    drawPlaceOfIssuance(doc, data, { y: top + 28})
-    drawLetterhead(doc, data)
+    .text('CARTA ENCOMIENDA', { align: 'center', width: doc.page.width - doc.page.margins.left - doc.page.margins.right })
+    .moveDown(0.5)
 
   doc
     .font('Helvetica-Bold')
@@ -60,50 +65,47 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     .text('ACCESO AL ITN No. 22, Int.')
     .text('COLONIA UNIDAD DEPORTIVA, C.P. 84063')
     .text('NOGALES, SONORA.')
+    .moveDown(2)
 
-  doc.font('Helvetica').fontSize(10).text('Presente.').moveDown(0.8)
 
   const encomiendaParagraph1 = [
     { text: 'En mi carácter de ' },
     { text: 'Representante Legal', isBold: true },
     { text: ' de la empresa ' },
-    { text: data.user.company.socialReason || 'No llenado', isUnderlined: true },
+    { text: data.user.company.socialReason || 'No llenado', isBold: true },
     { text: ', con domicilio fiscal en ' },
-    { text: data.user.address.street || 'No llenado', isUnderlined: true },
+    { text: data.user.address.street || 'No llenado', isBold: true },
     { text: ', número exterior ' },
-    { text: data.user.address.exteriorNumber || 'No llenado', isUnderlined: true },
+    { text: data.user.address.exteriorNumber || 'No llenado', isBold: true },
     { text: ', número interior ' },
-    { text: data.user.address.interiorNumber || 'No llenado', isUnderlined: true },
+    { text: data.user.address.interiorNumber || 'No llenado', isBold: true },
     { text: ', colonia ' },
-    { text: data.user.address.neighborhood || 'No llenado', isUnderlined: true },
+    { text: data.user.address.neighborhood || 'No llenado', isBold: true },
     { text: ', municipio ' },
-    { text: data.user.address.city || 'No llenado', isUnderlined: true },
+    { text: data.user.address.city || 'No llenado', isBold: true },
     { text: ', localidad ' },
-    { text: data.user.address.locality || 'No llenado', isUnderlined: true },
+    { text: data.user.address.locality || 'No llenado', isBold: true },
     { text: ', entidad federativa ' },
-    { text: data.user.address.state || 'No llenado', isUnderlined: true },
+    { text: data.user.address.state || 'No llenado', isBold: true },
     { text: ', México, Código Postal ' },
-    { text: data.user.address.postalCode || 'No llenado', isUnderlined: true },
+    { text: data.user.address.postalCode || 'No llenado', isBold: true },
     { text: ', con Registro Federal de Contribuyentes ' },
-    { text: data.user.company.rfc || 'No llenado', isUnderlined: true },
+    { text: data.user.company.rfc || 'No llenado', isBold: true },
     { text: ', personalidad que acredito conforme al ' },
-    { text: 'Poder Notarial número', isBold: true },
-    { text: ' ' },
-    { text: powerNumber, isUnderlined: true },
+    { text: 'Poder Notarial número ', isBold: true },
+    { text: powerNumber, isBold: true },
     { text: ', ' },
-    { text: 'volumen', isBold: true },
-    { text: ' ' },
-    { text: powerVolume, isUnderlined: true },
+    { text: 'volumen ', isBold: true },
+    { text: powerVolume, isBold: true },
     { text: ', de fecha ' },
-    { text: dayjs(powerDate).format('DD/MM/YYYY') || 'No llenado', isUnderlined: true },
+    { text: powerDateText || 'No llenado', isBold: true },
     { text: ', otorgado ante la fe del ' },
-    { text: 'Notario Público número', isBold: true },
-    { text: ' ' },
-    { text: notaryNumber, isUnderlined: true },
+    { text: 'Notario Público número ', isBold: true },
+    { text: notaryNumber, isBold: true },
     { text: ', Lic. ' },
-    { text: notaryName, isUnderlined: true },
+    { text: notaryName, isBold: true },
     { text: ', de la Ciudad de ' },
-    { text: `${notaryCity}, ${notaryState}`, isUnderlined: true },
+    { text: `${notaryCity}, ${notaryState}`, isBold: true },
     { text: ', manifiesto lo siguiente:' }
   ];
 
@@ -113,7 +115,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
   const encomiendaParagraph2 = [
     { text: 'En términos de los Artículos 40, 59, fracción III, segundo párrafo y 81 de la Ley Aduanera vigente, en relación con el artículo 81 del Reglamento de la Ley Aduanera en vigor, procedo encomendar y conferir el encargo a su favor, en su carácter de ' },
     { text: 'titular de la Patente Aduanal número 1623, ', isBold: true },
-    { text: ' para que a nombre y por cuenta exclusiva de mi representada, realice el ' },
+    { text: 'para que a nombre y por cuenta exclusiva de mi representada, realice el ' },
     { text: 'despacho aduanero', isBold: true },
     { text: ' de las mercancías de ' },
     { text: 'importación y/o exportación', isBold: true },
@@ -128,9 +130,9 @@ export function generarCartaEncomiendaPersonasMorales(data) {
   const encomiendaParagraph3 = [
     { text: 'Reconozco y acepto expresamente que, conforme a la legislación aduanera vigente y sus reformas, la ' },
     { text: 'responsabilidad sobre la veracidad, exactitud, integridad y legalidad ', isBold: true },
-    { text: ' de la información y documentación proporcionada corresponde ' },
-    { text: ' exclusivamente a mi mandante en su calidad de importador,', isBold: true },
-    { text: ' por lo que: ' }
+    { text: 'de la información y documentación proporcionada corresponde ' },
+    { text: 'exclusivamente a mi mandante en su calidad de importador, ', isBold: true },
+    { text: 'por lo que: ' }
   ];
   createStylizedParagraph(doc, encomiendaParagraph3, paragraphOptions)
   doc.moveDown(0.8)
@@ -151,7 +153,9 @@ export function generarCartaEncomiendaPersonasMorales(data) {
       { text: 'b) ', isBold: true },
       { text: 'Mi mandante se obliga a proporcionar al Agente Aduanal ' },
       { text: 'información completa, veraz, exacta, lícita y comprobable, ', isBold: true },
-      { text: ' incluyendo de manera enunciativa más no limitativa: facturas comerciales, contratos, órdenes de compra, documentos de transporte, comprobantes de pago, certificados de origen, permisos, avisos, padrones, registros, cumplimiento de NOM, regulaciones y restricciones no arancelarias, así como cualquier otro documento exigido por la legislación fiscal y aduanera.' }
+      { text: ' incluyendo de manera enunciativa más no limitativa: facturas comerciales, contratos, órdenes de compra, documentos de transporte, comprobantes de pago, certificados de origen, permisos, avisos, padrones, registros, cumplimiento de ', isBold: false },
+      { text: ' NOM', isBold: true },
+      { text: ', regulaciones y restricciones no arancelarias, así como cualquier otro documento exigido por la legislación fiscal y aduanera.' }
     ],
 
     // Inciso c)
@@ -261,7 +265,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     doc.moveDown(0.8); // Espaciado controlado entre cada inciso
   });
 
-  doc.moveDown(2)
+  doc.moveDown(1.4)
 
 
   doc
@@ -271,7 +275,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
 
   doc.font('Helvetica')
     .text(data.user.company.socialReason, { align: 'center' })
-    .moveDown(2)
+    .moveDown(6)
 
   doc
     .font('Helvetica')

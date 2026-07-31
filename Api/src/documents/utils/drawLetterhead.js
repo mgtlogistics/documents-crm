@@ -5,26 +5,29 @@ const drawLetterhead = (doc, data) => {
   const left = doc.page.margins.left
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right
   let yPosition = doc.page.margins.top
-  const gap = 2;
+  const gap = 4;
+  const logoHeight = 42;
+  const logoTextGap = 10;
 
   const { exteriorNumber, street, postalCode, city, state } = data?.user?.address || {}
+  const companyName = data.user?.company?.socialReason || ""
+  const companyRfc = data.user?.company?.rfc || ""
+  const fullAddress = `${street || ""} ${exteriorNumber || ""} ${postalCode || ""} ${city || ""} ${state || ""}`.trim()
+  const textLines = [companyName, companyRfc, fullAddress].filter(Boolean).join('\n')
+  const logoPath = data.user?.letterhead ? getFrontendImg(data.user.letterhead) : null
+  const logoImage = logoPath && fs.existsSync(logoPath) ? doc.openImage(logoPath) : null
+  const logoWidth = logoImage ? (logoImage.width * logoHeight) / logoImage.height : 0
 
-  if (data.user?.letterhead && fs.existsSync(getFrontendImg(data.user?.letterhead))) {
-    doc.image(getFrontendImg(data.user?.letterhead), left, yPosition, { height: 25 })
-    yPosition += 25 + gap; // Adjust yPosition after the image
+  if (logoPath && logoImage) {
+    doc.image(logoPath, left, yPosition, { height: logoHeight })
   }
 
-  doc.text(data.user?.company?.socialReason || "", left, yPosition, { width, align: 'left' })
-  yPosition += doc.currentLineHeight() + gap;
+  const textX = logoImage ? left + logoWidth + logoTextGap : left
+  const textWidth = logoImage ? width - logoWidth - logoTextGap : width
+  const textHeight = doc.heightOfString(textLines, { width: textWidth })
 
-  doc.text(data.user?.company?.rfc || "", left, yPosition, { width, align: 'left' })
-  yPosition += doc.currentLineHeight() + gap;
-
-  doc.text(`${street || ""} ${exteriorNumber || ""}`, left, yPosition, { width, align: 'left' })
-  yPosition += doc.currentLineHeight() + gap;
-
-  doc.text(`${postalCode || ""} ${city || ""} ${state || ""}`, left, yPosition, { width, align: 'left' })
-  yPosition += doc.currentLineHeight() + gap;
+  doc.text(textLines, textX, yPosition, { width: textWidth, align: 'left' })
+  yPosition += Math.max(logoHeight, textHeight) + gap;
 
   
   doc.moveDown(1.5)

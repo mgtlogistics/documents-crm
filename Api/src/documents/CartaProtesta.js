@@ -47,7 +47,7 @@ export function generarCartaProtesta(data) {
   doc
     .font('Helvetica-Bold')
     .fontSize(13)
-    .text('Carta bajo protesta de decir verdad – regla 3.1.42', { align: 'center' })
+    .text('Carta bajo protesta de decir verdad - regla 3.1.42', { align: 'center' })
     .moveDown(0.3)
 
   doc
@@ -57,8 +57,8 @@ export function generarCartaProtesta(data) {
     .moveDown(1)
 
 
-  drawPlaceOfIssuance(doc, data, { preserveCursor: true })
   drawLetterhead(doc, data)
+  drawPlaceOfIssuance(doc, data, { preserveCursor: true })
   
   doc
     .font('Helvetica-Bold')

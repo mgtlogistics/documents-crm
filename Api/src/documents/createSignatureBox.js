@@ -18,20 +18,21 @@ export default function createSignatureBox(doc, opciones = {}) {
   const pageWidth = doc.page.width;
   const x = (pageWidth - boxWidth) / 2;
 
-  // 2. CALCULAR CENTRADO VERTICAL EN EL ESPACIO RESTANTE
+  // 2. POSICIÓN VERTICAL OPCIONAL
+  // Si se pasa una Y explícita, se respeta. Si no, se centra en el espacio restante.
   const yActual = doc.y; // Coordenada Y justo abajo de tu último párrafo
   const yLimiteInferior = doc.page.height - doc.page.margins.bottom; // Límite antes de saltar de página
   const espacioDisponibleVertical = yLimiteInferior - yActual;
 
-  // Si por alguna razón el recuadro no cabe en el espacio restante, 
-  // dejamos que PDFKit use la posición actual por defecto para evitar que se desborde
-  let y = yActual;
-  if (espacioDisponibleVertical > boxHeight) {
-    // Calculamos el punto medio exacto del espacio que sobra al fondo de la hoja
-    y = yActual + (espacioDisponibleVertical - boxHeight) / 2;
-  } else {
-    // Si el espacio es muy justo, dejamos un pequeño espacio de separación manual
-    y = yActual + 15;
+  let y = typeof opciones.y === 'number' ? opciones.y : yActual;
+  if (typeof opciones.y !== 'number') {
+    if (espacioDisponibleVertical > boxHeight) {
+      // Calculamos el punto medio exacto del espacio que sobra al fondo de la hoja
+      y = yActual + (espacioDisponibleVertical - boxHeight) / 2;
+    } else {
+      // Si el espacio es muy justo, dejamos un pequeño espacio de separación manual
+      y = yActual + 15;
+    }
   }
 
   doc.save(); // Guardamos estilos

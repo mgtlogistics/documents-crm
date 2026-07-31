@@ -22,7 +22,6 @@ const getLegalRepresentativeFullName = (company = {}) => {
 
 export function generarCartaCFDI(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
-  const left = doc.page.margins.left
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right
   const AUTOCOMP = '(autocompletado)'
   const company = data?.user?.company || {}
@@ -31,8 +30,8 @@ export function generarCartaCFDI(data) {
 
 
 
-  drawPlaceOfIssuance(doc, data)
   drawLetterhead(doc, data)
+  drawPlaceOfIssuance(doc, data)
 
   doc
     .font('Helvetica-Bold')
@@ -52,9 +51,9 @@ export function generarCartaCFDI(data) {
 
   const paragraph1 = [
     { text: 'En los términos de las ' },
-    { text: 'reglas 3.1.38' },
+    { text: 'reglas 3.1.38', isBold: true },
     { text: ' y ' },
-    { text: '3.1.39' },
+    { text: '3.1.39', isBold: true },
     { text: ' de las ' },
     { text: 'Reglas Generales de Comercio Exterior ' },
     { text: ' para 2026, bajo protesta de decir verdad manifiesto que el (los) CFDI que le fueron otorgados para hacer el despacho de las mercancías consignadas para su exportación en nuestra Carta Encomienda vigente del 01 de enero de 2026 al 31 de diciembre de 2026, se encuentran vigentes, las cuales, de acuerdo con las leyes fiscales, son responsabilidad única de generar y cancelar por parte de mi representada, motivo por el cual en caso de una cancelación de dichos CFDI antes de pagar y modular el pedimento, le será informado directamente a usted como Agente Aduanal.' },
@@ -80,16 +79,13 @@ export function generarCartaCFDI(data) {
     .font('Helvetica-Bold')
     .fontSize(10.5)
     .text(data.user?.company.socialReason || 'No llenado', { align: 'center' })
-    .moveDown(1.6)
-
-  const leftPos = left
-  const rightPos = doc.page.width / 2
 
   createSignatureBox(doc, {
     width: 280,
     height: 100,
     barHeight: 26,
     text: legalRepresentativeFullName,
+    y: doc.y + 4,
   })
 
   doc.end()

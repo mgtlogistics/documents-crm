@@ -55,8 +55,8 @@ export function generarCartaDeEncomienda(data) {
     .font('Helvetica')
     .fontSize(10.5)
 
-  drawPlaceOfIssuance(doc, data,{y:top + 28})
   drawLetterhead(doc, data)
+  drawPlaceOfIssuance(doc, data,{y:top + 28})
 
 
   // Agent info
@@ -82,7 +82,7 @@ export function generarCartaDeEncomienda(data) {
   // Second paragraph - Legal compliance
   const paragraph1 = [
     { text: 'A través de este medio y con fundamento en lo dispuesto por ' },
-    { text: 'los artículos 10, 18, 19, 102, 103, y 105 fracciones XII y XIII del Código Fiscal de la Federación y en cumplimiento a los artículos 35, 36, 36-A, 37, 37-A, 40, 41, 43, 54, 59 fracción III, 66, 67,  68,  78-A,  78-C, 151,  162  IV,  162  VI,  162  VII  y   164  II de   la Ley Aduanera vigente, y artículos 52, 55, 58 y 65, 83, 91, 93, y 97 del Reglamento de la Ley Aduanera vigente,', isBold: true },
+    { text: 'los artículos 10, 18, 19, 102, 103, y 105 fracciones XII y XIII del Código Fiscal de la Federación y en cumplimiento a los artículos 35, 36, 36-A, 37, 37-A, 40, 41, 43, 54, 59 fracción III, 66, 67, 68, 78-A, 78-C, 151, 162 IV, 162 VI, 162 VII y 164 II de la Ley Aduanera vigente, y artículos 52, 55, 58 y 65, 83, 91, 93, y 97 del Reglamento de la Ley Aduanera vigente,', isBold: true },
     { text: ' le hago formal ' },
     { text: 'ENCOMIENDA', isBold: true },
     { text: ' para que lleve a cabo en favor de mi mandante el despacho aduanero de sus mercancías en cualquiera de sus regímenes. ' },
@@ -103,8 +103,8 @@ export function generarCartaDeEncomienda(data) {
   // Paragraph about appointment
   const paragraph2 = [
     { text: 'En ese sentido, y gozando de las facultades que tengo conferidas, le manifiesto que es voluntad de mi Representada(o), nombrarlo(a) a Usted ' },
-    { text: ' LUIS FERNANDO VIÑALS ORTIZ DE LA PEÑA ', isBold: true, isUnderlined: true },
-    { text: 'con RFC VIOL590529PQA como mi Agente Aduanal, por la aduana de Nuevo Laredo Tamaulipas, y por todas las que tenga autorizadas ante la Secretaría y que se encuentran amparadas con la Patente Aduanal Número 3448 ' },
+    { text: 'LUIS FERNANDO VIÑALS ORTIZ DE LA PEÑA ', isBold: true, isUnderlined: true },
+    { text: 'con RFC VIOL590529PQA como mi Agente Aduanal, por la aduana de Nuevo Laredo Tamaulipas, y por todas las que tenga autorizadas ante la Secretaría y que se encuentran amparadas con la Patente Aduanal Número ' },
     { text: '3448 ', isBold: true, isUnderlined: true },
 
   ]

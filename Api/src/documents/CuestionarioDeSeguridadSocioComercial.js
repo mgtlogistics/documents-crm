@@ -29,7 +29,7 @@ function contentWidth(doc) {
 
 function contentBottom(doc) {
   // Reserva espacio para el footer para evitar brincos de pagina inesperados.
-  return doc.page.height - doc.page.margins.bottom - 24
+  return doc.page.height - doc.page.margins.bottom - 14
 }
 
 function drawFooter(doc, pageNumber, totalPages) {
@@ -79,7 +79,7 @@ function drawStaticHeader(doc) {
 
   doc
     .font('Helvetica-Bold')
-    .fontSize(14)
+    .fontSize(13)
     .fillColor(BLACK)
     .text('Cuestionario de Seguridad para Socio Comercial', left, doc.page.margins.top, {
       width,
@@ -87,13 +87,13 @@ function drawStaticHeader(doc) {
     })
 
   doc
-    .moveTo(left, doc.page.margins.top + 24)
-    .lineTo(left + width, doc.page.margins.top + 24)
+    .moveTo(left, doc.page.margins.top + 20)
+    .lineTo(left + width, doc.page.margins.top + 20)
     .lineWidth(0.8)
     .strokeColor('#9ca3af')
     .stroke()
 
-  doc.y = doc.page.margins.top + 34
+  doc.y = doc.page.margins.top + 28
 }
 
 function drawCoverHeader(doc, data) {
@@ -109,38 +109,32 @@ function drawCoverHeader(doc, data) {
       align: 'right',
     })
 
-  // doc
-  //   .moveTo(left + width - 180, doc.page.margins.top + 16)
-  //   .lineTo(left + width - 8, doc.page.margins.top + 16)
-  //   .lineWidth(0.8)
-  //   .strokeColor(BLACK)
-  //   .stroke()
 
   doc
     .font('Helvetica-Bold')
-    .fontSize(17)
+    .fontSize(14)
     .fillColor(BLACK)
     .text('Cuestionario de Seguridad para Socio Comercial', left, doc.page.margins.top + 10, {
       width,
       align: 'center',
     })
 
-  const introY = doc.page.margins.top + 62
-  const introH = 70
+  const introY = doc.page.margins.top + 52
+  const introH = 58
   doc.rect(left + 42, introY, width - 42, introH).strokeColor(BLACK).lineWidth(0.8).stroke()
 
   doc
     .font('Helvetica')
-    .fontSize(8.6)
+    .fontSize(8)
     .fillColor(BLACK)
     .text(
       'Como Agente Aduanal certificado en materia de seguridad para la cadena de suministros bajo los requisitos del perfil del agente aduanal OEA que expide el Servicio de Administracion Tributaria y con la finalidad de proporcionar la seguridad que sus operaciones requieren, le solicitamos responder al siguiente cuestionario para obtener conocimiento de las medidas de seguridad implementadas en cada uno de los centros de trabajo. Esperando fortalecer la seguridad de nuestra cadena de suministros, bajo el seguimiento de requerimientos y recomendaciones del programa OEA agradecemos de antemano las facilidades para la verificacion de sus respuestas.',
       left + 56,
-      introY + 12,
+      introY + 8,
       { width: width - 70, align: 'center' }
     )
 
-  let y = introY + introH + 10
+  let y = introY + introH + 6
   const labelX = left + 10
   const valueX = left + 260
   const valueW = width - (valueX - left) - 8
@@ -160,13 +154,13 @@ function drawCoverHeader(doc, data) {
   const drawField = (label, value, topY) => {
     const labelHeight = doc.heightOfString(label, { width: valueX - labelX - 10 })
     const valueHeight = doc.heightOfString(value, { width: valueW - 8 })
-    const rowHeight = Math.max(18, Math.max(labelHeight, valueHeight) + 8)
+    const rowHeight = Math.max(14, Math.max(labelHeight, valueHeight) + 5)
 
     doc
       .font('Helvetica')
       .fontSize(8)
       .fillColor(BLACK)
-      .text(label, labelX, topY + 2, { width: valueX - labelX - 10 })
+      .text(label, labelX, topY + 1, { width: valueX - labelX - 10 })
 
     doc
       .lineWidth(0.6)
@@ -179,13 +173,13 @@ function drawCoverHeader(doc, data) {
       .font('Helvetica-Bold')
       .fontSize(8)
       .fillColor(BLACK)
-      .text(value, valueX + 4, topY + 2, { width: valueW - 8 })
+      .text(value, valueX + 4, topY + 1, { width: valueW - 8 })
 
-    return rowHeight + 6
+    return rowHeight + 2
   }
 
-  y += drawField('Nombre de la persona o empresa', toDisplayText(data?.user?.company?.socialReason), y)
-  y += drawField('Nombre representante legal', toDisplayText(getLegalRepresentativeFullName(data?.user?.company)), y)
+  y += drawField('Nombre de la persona o empresa', toDisplayText(data?.companyName), y)
+  y += drawField('Nombre representante legal', toDisplayText(data?.legalRepresentativeName), y)
   y += drawField('Nombre quien respondió la verificación', toDisplayText(data?.formFillerName), y)
   y += drawField('En caso de contar con certificación de seguridad indicar el numero de certificado', toDisplayText(data?.certificationNumber), y)
   y += drawField('Vigencia de la certificación', toDisplayDate(data?.certificationValidity), y)
@@ -198,11 +192,11 @@ function drawCoverHeader(doc, data) {
     .text(
       'Instrucciones: Indicar con una X la respuesta. El resultado es medido por personal que aplica y verifica el cuestionario e instalaciones.',
       left + 10,
-      y + 4,
+      y + 2,
       { width: width - 20 }
     )
 
-  doc.y = y + 24
+  doc.y = y + 14
 }
 
 function ensureSpace(doc, requiredHeight, state) {
@@ -223,9 +217,9 @@ function drawMainTableHeader(doc, title, widths) {
 
   let x = left
   labels.forEach((label, i) => {
-    doc.rect(x, y, widths[i], 18).fillColor(BLUE).fill()
-    doc.rect(x, y, widths[i], 18).strokeColor(BLACK).lineWidth(0.5).stroke()
-    doc.font('Helvetica-Bold').fontSize(8).fillColor('#ffffff').text(label, x + 2, y + 5, {
+    doc.rect(x, y, widths[i], 16).fillColor(BLUE).fill()
+    doc.rect(x, y, widths[i], 16).strokeColor(BLACK).lineWidth(0.5).stroke()
+    doc.font('Helvetica-Bold').fontSize(7.6).fillColor('#ffffff').text(label, x + 2, y + 4, {
       width: widths[i] - 4,
       align: 'center',
       lineBreak: false,
@@ -233,7 +227,7 @@ function drawMainTableHeader(doc, title, widths) {
     x += widths[i]
   })
 
-  doc.y = y + 18
+  doc.y = y + 16
 }
 
 function normalizeAnswer(answer) {
@@ -275,17 +269,17 @@ function drawMainSection(doc, title, rows, state) {
       sectionScore += valor
     }
 
-    doc.font('Helvetica').fontSize(7.2)
+    doc.font('Helvetica').fontSize(7)
     const rowTextHeight = doc.heightOfString(row.pregunta, { width: widths[2] - 6 })
     const obsTextHeight = doc.heightOfString(comment, { width: widths[5] - 6 })
-    const rowH = Math.max(18, Math.max(rowTextHeight + 7, obsTextHeight + 7))
+    const rowH = Math.max(15, Math.max(rowTextHeight + 5, obsTextHeight + 5))
     ensureSpace(doc, rowH + 2, state)
 
     let x = left
     const y = doc.y
 
     doc.rect(x, y, widths[0], rowH).strokeColor(BLACK).lineWidth(0.5).stroke()
-    doc.font('Helvetica').fontSize(8).fillColor(BLACK).text(String(row.no), x + 1, y + 4, {
+    doc.font('Helvetica').fontSize(7.6).fillColor(BLACK).text(String(row.no), x + 1, y + 3, {
       width: widths[0] - 2,
       align: 'center',
       lineBreak: false,
@@ -293,7 +287,7 @@ function drawMainSection(doc, title, rows, state) {
     x += widths[0]
 
     doc.rect(x, y, widths[1], rowH).strokeColor(BLACK).lineWidth(0.5).stroke()
-    doc.font('Helvetica').fontSize(8).fillColor(BLACK).text(formatValue(row.valor), x + 1, y + 4, {
+    doc.font('Helvetica').fontSize(7.6).fillColor(BLACK).text(formatValue(row.valor), x + 1, y + 3, {
       width: widths[1] - 2,
       align: 'center',
       lineBreak: false,
@@ -301,7 +295,7 @@ function drawMainSection(doc, title, rows, state) {
     x += widths[1]
 
     doc.rect(x, y, widths[2], rowH).strokeColor(BLACK).lineWidth(0.5).stroke()
-    doc.font('Helvetica').fontSize(7.2).fillColor(BLACK).text(row.pregunta, x + 3, y + 3, {
+    doc.font('Helvetica').fontSize(7).fillColor(BLACK).text(row.pregunta, x + 3, y + 2, {
       width: widths[2] - 6,
       align: 'left',
     })
@@ -310,9 +304,9 @@ function drawMainSection(doc, title, rows, state) {
     doc.rect(x, y, widths[3], rowH).strokeColor(BLACK).lineWidth(0.5).stroke()
     doc
       .font('Helvetica-Bold')
-      .fontSize(10)
+      .fontSize(9)
       .fillColor(BLACK)
-      .text(answer === 'SI' ? 'X' : '', x + 1, y + 4, {
+      .text(answer === 'SI' ? 'X' : '', x + 1, y + 3, {
         width: widths[3] - 2,
         align: 'center',
         lineBreak: false,
@@ -322,9 +316,9 @@ function drawMainSection(doc, title, rows, state) {
     doc.rect(x, y, widths[4], rowH).strokeColor(BLACK).lineWidth(0.5).stroke()
     doc
       .font('Helvetica-Bold')
-      .fontSize(10)
+      .fontSize(9)
       .fillColor(BLACK)
-      .text(answer === 'NO' ? 'X' : '', x + 1, y + 4, {
+      .text(answer === 'NO' ? 'X' : '', x + 1, y + 3, {
         width: widths[4] - 2,
         align: 'center',
         lineBreak: false,
@@ -332,7 +326,7 @@ function drawMainSection(doc, title, rows, state) {
     x += widths[4]
 
     doc.rect(x, y, widths[5], rowH).strokeColor(BLACK).lineWidth(0.5).stroke()
-    doc.font('Helvetica').fontSize(7.2).fillColor(BLACK).text(comment, x + 3, y + 3, {
+    doc.font('Helvetica').fontSize(7).fillColor(BLACK).text(comment, x + 3, y + 2, {
       width: widths[5] - 6,
       align: 'left',
     })
@@ -346,21 +340,21 @@ function drawMainSection(doc, title, rows, state) {
   state.mainScore.earned += sectionScore
   state.mainScore.max += sectionMaxScore
 
-  ensureSpace(doc, 24, state)
-  doc.rect(left, doc.y, tableWidth - 120, 20).strokeColor(BLACK).lineWidth(0.5).stroke()
-  doc.rect(left + tableWidth - 120, doc.y, 120, 20).strokeColor(BLACK).lineWidth(0.5).stroke()
-  doc.font('Helvetica-Bold').fontSize(8).fillColor(BLACK).text('Resultado', left + tableWidth - 116, doc.y + 6, {
+  ensureSpace(doc, 20, state)
+  doc.rect(left, doc.y, tableWidth - 120, 18).strokeColor(BLACK).lineWidth(0.5).stroke()
+  doc.rect(left + tableWidth - 120, doc.y, 120, 18).strokeColor(BLACK).lineWidth(0.5).stroke()
+  doc.font('Helvetica-Bold').fontSize(7.6).fillColor(BLACK).text('Resultado', left + tableWidth - 116, doc.y + 5, {
     width: 54,
     align: 'left',
     lineBreak: false,
   })
-  doc.font('Helvetica').fontSize(10).text(`${formatValue(sectionScore)} de ${formatValue(sectionMaxScore)}`, left + tableWidth - 58, doc.y - 9, {
+  doc.font('Helvetica').fontSize(9).text(`${formatValue(sectionScore)} de ${formatValue(sectionMaxScore)}`, left + tableWidth - 58, doc.y - 8, {
     width: 50,
     align: 'right',
     lineBreak: false,
   })
 
-  doc.y += 26
+  doc.y += 22
 }
 
 function drawMainTotalResult(doc, state) {
@@ -372,21 +366,21 @@ function drawMainTotalResult(doc, state) {
   const width = contentWidth(doc)
   const resultW = 150
 
-  ensureSpace(doc, 28, state)
+  ensureSpace(doc, 24, state)
 
-  doc.rect(left, doc.y, width - resultW, 22).strokeColor(BLACK).lineWidth(0.8).stroke()
-  doc.rect(left + width - resultW, doc.y, resultW, 22).strokeColor(BLACK).lineWidth(0.8).stroke()
+  doc.rect(left, doc.y, width - resultW, 20).strokeColor(BLACK).lineWidth(0.8).stroke()
+  doc.rect(left + width - resultW, doc.y, resultW, 20).strokeColor(BLACK).lineWidth(0.8).stroke()
 
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(BLACK).text('Resultado final del cuestionario', left + 6, doc.y + 7, {
+  doc.font('Helvetica-Bold').fontSize(8.5).fillColor(BLACK).text('Resultado final del cuestionario', left + 6, doc.y + 6, {
     width: width - resultW - 12,
     align: 'left',
     lineBreak: false,
   })
 
-  doc.font('Helvetica-Bold').fontSize(10).fillColor(BLACK).text(
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(BLACK).text(
     `${formatValue(state.mainScore.earned)} de ${formatValue(state.mainScore.max)}`,
     left + width - resultW + 6,
-    doc.y + 6,
+    doc.y + 5,
     {
       width: resultW - 12,
       align: 'right',
@@ -394,7 +388,7 @@ function drawMainTotalResult(doc, state) {
     }
   )
 
-  doc.y += 28
+  doc.y += 24
 }
 
 function drawVerificationHeader(doc, title, widths) {
@@ -402,9 +396,9 @@ function drawVerificationHeader(doc, title, widths) {
   const totalW = widths.reduce((a, b) => a + b, 0)
   const y = doc.y
 
-  doc.rect(left, y, totalW, 19).fillColor(TEAL).fill()
-  doc.rect(left, y, totalW, 19).strokeColor(BLACK).lineWidth(0.5).stroke()
-  doc.font('Helvetica').fontSize(8).fillColor('#ffffff').text(title, left + 4, y + 5, {
+  doc.rect(left, y, totalW, 17).fillColor(TEAL).fill()
+  doc.rect(left, y, totalW, 17).strokeColor(BLACK).lineWidth(0.5).stroke()
+  doc.font('Helvetica').fontSize(7.6).fillColor('#ffffff').text(title, left + 4, y + 4, {
     width: totalW - 8,
     align: 'center',
   })
@@ -412,9 +406,9 @@ function drawVerificationHeader(doc, title, widths) {
   let x = left
   const labels = ['Item', 'Si', 'No', 'Observaciones']
   labels.forEach((label, i) => {
-    doc.rect(x, y + 19, widths[i], 18).fillColor(TEAL).fill()
-    doc.rect(x, y + 19, widths[i], 18).strokeColor(BLACK).lineWidth(0.5).stroke()
-    doc.font('Helvetica').fontSize(8).fillColor('#ffffff').text(label, x + 2, y + 24, {
+    doc.rect(x, y + 17, widths[i], 16).fillColor(TEAL).fill()
+    doc.rect(x, y + 17, widths[i], 16).strokeColor(BLACK).lineWidth(0.5).stroke()
+    doc.font('Helvetica').fontSize(7.6).fillColor('#ffffff').text(label, x + 2, y + 21, {
       width: widths[i] - 4,
       align: 'center',
       lineBreak: false,
@@ -422,7 +416,7 @@ function drawVerificationHeader(doc, title, widths) {
     x += widths[i]
   })
 
-  doc.y = y + 37
+  doc.y = y + 33
 }
 
 function drawVerificationBlock(doc, title, rows, state) {
@@ -432,14 +426,14 @@ function drawVerificationBlock(doc, title, rows, state) {
 
   rows.forEach((text) => {
     const rowTextHeight = doc.heightOfString(text, { width: widths[0] - 6 })
-    const rowH = Math.max(20, rowTextHeight + 8)
+    const rowH = Math.max(16, rowTextHeight + 5)
     ensureSpace(doc, rowH + 2, state)
 
     let x = doc.page.margins.left
     const y = doc.y
 
     doc.rect(x, y, widths[0], rowH).strokeColor(BLACK).lineWidth(0.5).stroke()
-    doc.font('Helvetica').fontSize(8).fillColor(BLACK).text(text, x + 3, y + 5, {
+    doc.font('Helvetica').fontSize(7.6).fillColor(BLACK).text(text, x + 3, y + 3, {
       width: widths[0] - 6,
     })
     x += widths[0]
@@ -453,25 +447,25 @@ function drawVerificationBlock(doc, title, rows, state) {
     doc.y = y + rowH
   })
 
-  doc.y += 6
+  doc.y += 3
 }
 
 function drawConvenio(doc, data, state) {
   const left = doc.page.margins.left
   const width = contentWidth(doc)
 
-  ensureSpace(doc, 230, state)
+  ensureSpace(doc, 180, state)
 
   doc
     .font('Helvetica-Bold')
     .fontSize(10)
     .fillColor(BLACK)
     .text('Convenio entre Empresa y Socio Comercial', left, doc.y, { width })
-  doc.y += 6
+  doc.y += 3
 
   doc
     .font('Helvetica')
-    .fontSize(9)
+    .fontSize(8.5)
     .fillColor(BLACK)
     .text(
       'Nos comprometemos a mantener y seguir los estándares de seguridad en conjunto con la empresa para lograr la salvaguarda e integridad de la cadena de suministro. Asi mismo, a implementar las medidas con las que nuestra empresa no cuente para cumplir con los requisitos de seguridad.',
@@ -479,7 +473,7 @@ function drawConvenio(doc, data, state) {
       doc.y,
       { width, align: 'left' }
     )
-  doc.y += 8
+  doc.y += 4
 
   const compromisos = [
     '1. Análisis de riesgo.',
@@ -496,12 +490,12 @@ function drawConvenio(doc, data, state) {
   ]
 
   compromisos.forEach((item) => {
-    doc.font('Helvetica').fontSize(9).fillColor(BLACK).text(item, left + 12, doc.y, { width: width - 20 })
-    doc.y += 2
+    doc.font('Helvetica').fontSize(8.5).fillColor(BLACK).text(item, left + 12, doc.y, { width: width - 20 })
+    doc.y += 1
   })
 
-  ensureSpace(doc, 56, state)
-  const signY = doc.y + 70
+  ensureSpace(doc, 46, state)
+  const signY = doc.y + 36
   const lineWidth = 250
   const rightX = left + width - lineWidth
 
@@ -528,7 +522,7 @@ function drawConvenio(doc, data, state) {
     align: 'center',
   })
 
-  doc.y = signY + 30
+  doc.y = signY + 16
 }
 
 export function generarCuestionarioSeguridadSocioComercial(data) {
@@ -625,7 +619,7 @@ export function generarCuestionarioSeguridadSocioComercial(data) {
   const SIZE_BODY = 11
   const SIZE_FOOTER = 8
   const INDENT = 20
-  const lineY = doc.y + 40
+  const lineY = doc.y + 18
   const colGap = 28
   const colWidth = (W - colGap) / 2
   const colLeft = doc.page.margins.left
@@ -659,7 +653,7 @@ export function generarCuestionarioSeguridadSocioComercial(data) {
     .text("Nombre y forma de verificador", colRight, signatureTextY, { width: colWidth, align: "center" })
 
   const rightSignatureBottomY = doc.y
-  doc.y = Math.max(leftSignatureBottomY, rightSignatureBottomY) + 14
+  doc.y = Math.max(leftSignatureBottomY, rightSignatureBottomY) + 8
 
 
 

@@ -3,6 +3,12 @@ import dayjs from 'dayjs'
 const drawPlaceOfIssuance = (doc, data, options = {}) => {
   const left = doc.page.margins.left
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right
+  const now = dayjs()
+  const currentDateText = now.toDate().toLocaleDateString('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
 
   const { city, state, country } = data?.user?.address || {}
 
@@ -18,7 +24,7 @@ const drawPlaceOfIssuance = (doc, data, options = {}) => {
     .font('Helvetica-Bold')
     .fontSize(10.5)
     .text(
-      `${city}, ${state}, ${country} | ${dayjs().format('DD/MMMM/YYYY')}`,
+      `${city}, ${state}, ${country} a ${currentDateText}`,
       left,
       targetY,
       { align: 'right', width }

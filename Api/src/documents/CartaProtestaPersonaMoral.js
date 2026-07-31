@@ -89,37 +89,27 @@ export function generarCartaProtestaPersonaMoral(data) {
   doc.x = contentLeft
   doc.y = doc.page.margins.top
 
-  // --- CORRECCIÓN HEADER ---
-  // Seteamos las coordenadas una sola vez y dejamos que el flujo avance de forma natural
-  doc.x = contentLeft + 175;
+  const headerRightX = contentLeft + 175
+  const headerRightWidth = contentWidth - 175
 
-  const left = doc.page.margins.left
-
-
-
+  drawLetterhead(doc, data)
   doc
     .font('Helvetica-Bold')
     .fontSize(13.5)
-    .text('Manifestación bajo protesta de decir verdad,', { width: contentWidth - 175, align: 'right' })
-    .text('conforme la Regla 1.4.14 fracción VII de las', { width: contentWidth - 175, align: 'right' })
-    .text('RGCE para 2026.', { width: contentWidth - 175, align: 'right' })
-    .moveDown(1.2)
+    .text('Manifestación bajo protesta de decir verdad,', headerRightX, doc.y, { width: headerRightWidth, align: 'right' })
+    .text('conforme la Regla 1.4.14 fracción VII de las', { width: headerRightWidth, align: 'right' })
+    .text('RGCE para 2026.', { width: headerRightWidth, align: 'right' })
 
-  drawPlaceOfIssuance(doc, data, { y: 120 + doc.currentLineHeight() })
-  drawLetterhead(doc, data)
+  drawPlaceOfIssuance(doc, data)
+  doc.moveDown(0.6)
 
-  // Reseteamos al margen izquierdo para la fecha
-  doc.x = contentLeft;
-
-  // --- CORRECCIÓN "A QUIEN CORRESPONDA" ---
-  // Forzamos que regrese al extremo izquierdo de la página
-  doc.x = contentLeft;
+  doc.x = contentLeft
   doc.font('Helvetica').fontSize(13).text('A quien corresponda', {
     align: 'left',
     width: contentWidth
   }).moveDown(0.45)
 
-  doc.x = contentLeft;
+  doc.x = contentLeft
   doc.font('Helvetica').fontSize(13).text('Presente.', {
     align: 'left',
     width: contentWidth
@@ -128,7 +118,7 @@ export function generarCartaProtestaPersonaMoral(data) {
   // Párrafo Inicial Estilizado
   doc.x = contentLeft
   const address = data?.user?.address || {}
-  const domicilioFiscal = `${address.street || ''} ${address.exteriorNumber || ''} ${address.interiorNumber || ''} ${address.neighborhood || ''} ${address.city || ''} ${address.state || ''} ${address.country || ''} ${address.zipCode || ''}, C.P. ${address.postalCode || ''}`
+  const domicilioFiscal = `${address.street || ''} NO. ${address.exteriorNumber || ''} ${address.neighborhood || ''} ${address.city || ''} ${address.state || ''} ${address.country || ''} ${address.zipCode || ''}, C.P. ${address.postalCode || ''}`
 
   createStylizedParagraph(
     doc,
@@ -144,7 +134,7 @@ export function generarCartaProtestaPersonaMoral(data) {
       { text: ', y con domicilio fiscal en ' },
       { text: domicilioFiscal, isBold: true },
       { text: ', acreditando mi personalidad mediante ' },
-      { text: `Poder Notarial ${powerNumber}`, isBold: true },
+      { text: `Poder Notarial `, isBold: true },
       { text: ' otorgado mediante ' },
       { text: `escritura pública número ${deedNumber}, volumen ${deedVolume}, `, isBold: true },
       { text: ` de fecha ${dayjs(powerDate).format('DD/MM/YYYY')}, pasada ante la fe del `, isBold: true },
@@ -172,7 +162,10 @@ export function generarCartaProtestaPersonaMoral(data) {
     )
     .moveDown(0.3)
 
-  doc.text(data.place_description)
+  doc
+  .font('Helvetica-Bold')
+  .fontSize(12.5)
+  .text(data.place_description)
     .moveDown(0.5)
 
   // Reseteamos X tras salir de las líneas de inmueble
@@ -201,7 +194,7 @@ export function generarCartaProtestaPersonaMoral(data) {
 
   data?.material.forEach((element, i) => {
     const text = toRoman(i + 1) + ". " + element
-    doc.font('Helvetica').fontSize(12).text(text, contentLeft + 20, doc.y, { width: contentWidth - 20, align: 'justify' }).moveDown(0.35)
+    doc.font('Helvetica-Bold').fontSize(12).text(text, contentLeft + 20, doc.y, { width: contentWidth - 20, align: 'justify' }).moveDown(0.35)
   })
 
   // Reseteamos X tras las líneas romanas
