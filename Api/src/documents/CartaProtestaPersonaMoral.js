@@ -41,6 +41,12 @@ export function generarCartaProtestaPersonaMoral(data) {
   const notaryCity = powerNotary?.city || company?.notaryCity || 'No llenado'
   const notaryState = powerNotary?.state || company?.notaryState || 'No llenado'
 
+  const powerDateFormatted = powerDate.toDate().toLocaleDateString('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+
   console.log(data)
 
   const ensureSpace = (requiredHeight = 40) => {
@@ -137,7 +143,7 @@ export function generarCartaProtestaPersonaMoral(data) {
       { text: `Poder Notarial `, isBold: true },
       { text: ' otorgado mediante ' },
       { text: `escritura pública número ${deedNumber}, volumen ${deedVolume}, `, isBold: true },
-      { text: ` de fecha ${dayjs(powerDate).format('DD/MM/YYYY')}, pasada ante la fe del `, isBold: true },
+      { text: ` de fecha ${powerDateFormatted}, pasada ante la fe del `, isBold: true },
       { text: `Notario Público número ${notaryNumber},`, isBold: true },
       { text: ` Lic. ${notaryName}, de la Ciudad de ${notaryCity}, ${notaryState}, con fundamento en lo dispuesto por la ` },
       { text: 'regla 1.4.14, fracción VII de las Reglas Generales de Comercio Exterior para 2026, manifiesto bajo protesta de decir verdad en nombre de mi representada', isBold: true },
@@ -163,9 +169,9 @@ export function generarCartaProtestaPersonaMoral(data) {
     .moveDown(0.3)
 
   doc
-  .font('Helvetica-Bold')
-  .fontSize(12.5)
-  .text(data.place_description)
+    .font('Helvetica-Bold')
+    .fontSize(12.5)
+    .text(data.place_description)
     .moveDown(0.5)
 
   // Reseteamos X tras salir de las líneas de inmueble

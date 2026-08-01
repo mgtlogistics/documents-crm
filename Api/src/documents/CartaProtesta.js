@@ -35,6 +35,12 @@ export function generarCartaProtesta(data) {
   const notaryCity = powerNotary?.city || company?.notaryCity || 'No llenado'
   const notaryState = powerNotary?.state || company?.notaryState || 'No llenado'
 
+    const powerDateFormatted = powerDate.toDate().toLocaleDateString('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+
 
   const paragraphOptions = {
     fontSize: 10,
@@ -87,7 +93,7 @@ export function generarCartaProtesta(data) {
       { text: `Poder Notarial ${powerNumber}`, isBold: true },
       { text: ' otorgado mediante ' },
       { text: `escritura pública número ${deedNumber}, volumen ${deedVolume}, `, isBold: true },
-      { text: ` de fecha ${dayjs(powerDate).format('DD/MM/YYYY')}, pasada ante la fe del `, isBold: true },
+      { text: ` de fecha ${powerDateFormatted}, pasada ante la fe del `, isBold: true },
       { text: `Notario Público número ${notaryNumber},`, isBold: true },
       { text: ` Lic. ${notaryName}, de la Ciudad de ${notaryCity}, ${notaryState}, con fundamento en lo dispuesto por la ` },
       { text: 'regla la regla 3.1.42, fracciones V y IX de las Reglas Generales de Comercio Exterior, manifiesto bajo protesta de decir verdad en nombre de mi representada', isBold: true },

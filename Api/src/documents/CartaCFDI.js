@@ -55,8 +55,8 @@ export function generarCartaCFDI(data) {
     { text: ' y ' },
     { text: '3.1.39', isBold: true },
     { text: ' de las ' },
-    { text: 'Reglas Generales de Comercio Exterior ' },
-    { text: ' para 2026, bajo protesta de decir verdad manifiesto que el (los) CFDI que le fueron otorgados para hacer el despacho de las mercancías consignadas para su exportación en nuestra Carta Encomienda vigente del 01 de enero de 2026 al 31 de diciembre de 2026, se encuentran vigentes, las cuales, de acuerdo con las leyes fiscales, son responsabilidad única de generar y cancelar por parte de mi representada, motivo por el cual en caso de una cancelación de dichos CFDI antes de pagar y modular el pedimento, le será informado directamente a usted como Agente Aduanal.' },
+    { text: 'Reglas Generales de Comercio Exterior para 2026', isBold: true },
+    { text: ' , bajo protesta de decir verdad manifiesto que el (los) CFDI que le fueron otorgados para hacer el despacho de las mercancías consignadas para su exportación en nuestra Carta Encomienda vigente del 01 de enero de 2026 al 31 de diciembre de 2026, se encuentran vigentes, las cuales, de acuerdo con las leyes fiscales, son responsabilidad única de generar y cancelar por parte de mi representada, motivo por el cual en caso de una cancelación de dichos CFDI antes de pagar y modular el pedimento, le será informado directamente a usted como Agente Aduanal.' },
   ]
 
   createStylizedParagraph(doc, paragraph1, paragraphOptions)

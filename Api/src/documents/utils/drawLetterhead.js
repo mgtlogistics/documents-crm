@@ -12,10 +12,13 @@ const drawLetterhead = (doc, data) => {
   const { exteriorNumber, street, postalCode, city, state } = data?.user?.address || {}
   const companyName = data.user?.company?.socialReason || ""
   const companyRfc = data.user?.company?.rfc || ""
-  const fullAddress = `${street || ""} ${exteriorNumber || ""} ${postalCode || ""} ${city || ""} ${state || ""}`.trim()
-  const textLines = [companyName, companyRfc, fullAddress].filter(Boolean).join('\n')
+  const addressL1 = `${street || ""} ${exteriorNumber || ""}`.trim()
+  const addressL2 = `${postalCode || ""} ${city || ""} ${state || ""}`.trim()
+  const textLines = [companyName, companyRfc, addressL1, addressL2].filter(Boolean).join('\n')
   const logoPath = data.user?.letterhead ? getFrontendImg(data.user.letterhead) : null
   const logoImage = logoPath && fs.existsSync(logoPath) ? doc.openImage(logoPath) : null
+  const estimatedTextHeight = doc.heightOfString(textLines, { width: width })
+  const logoHeight = logoImage ? Math.max(42, estimatedTextHeight) : 0
   const logoWidth = logoImage ? (logoImage.width * logoHeight) / logoImage.height : 0
 
   if (logoPath && logoImage) {
