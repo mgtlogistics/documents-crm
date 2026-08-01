@@ -128,7 +128,7 @@ function drawCoverHeader(doc, data) {
     .fontSize(8)
     .fillColor(BLACK)
     .text(
-      'Como Agente Aduanal certificado en materia de seguridad para la cadena de suministros bajo los requisitos del perfil del agente aduanal OEA que expide el Servicio de Administracion Tributaria y con la finalidad de proporcionar la seguridad que sus operaciones requieren, le solicitamos responder al siguiente cuestionario para obtener conocimiento de las medidas de seguridad implementadas en cada uno de los centros de trabajo. Esperando fortalecer la seguridad de nuestra cadena de suministros, bajo el seguimiento de requerimientos y recomendaciones del programa OEA agradecemos de antemano las facilidades para la verificacion de sus respuestas.',
+      'Como Agente Aduanal certificado en materia de seguridad para la cadena de suministros bajo los requisitos del perfil del agente aduanal OEA que expide el Servicio de Administración Tributaria y con la finalidad de proporcionar la seguridad que sus operaciones requieren, le solicitamos responder al siguiente cuestionario para obtener conocimiento de las medidas de seguridad implementadas en cada uno de los centros de trabajo. Esperando fortalecer la seguridad de nuestra cadena de suministros, bajo el seguimiento de requerimientos y recomendaciones del programa OEA agradecemos de antemano las facilidades para la verificación de sus respuestas.',
       left + 56,
       introY + 8,
       { width: width - 70, align: 'center' }
@@ -395,10 +395,12 @@ function drawVerificationHeader(doc, title, widths) {
   const left = doc.page.margins.left
   const totalW = widths.reduce((a, b) => a + b, 0)
   const y = doc.y
+  const headerHeight = 24
+  const labelRowHeight = 22
 
-  doc.rect(left, y, totalW, 17).fillColor(TEAL).fill()
-  doc.rect(left, y, totalW, 17).strokeColor(BLACK).lineWidth(0.5).stroke()
-  doc.font('Helvetica').fontSize(7.6).fillColor('#ffffff').text(title, left + 4, y + 4, {
+  doc.rect(left, y, totalW, headerHeight).fillColor(TEAL).fill()
+  doc.rect(left, y, totalW, headerHeight).strokeColor(BLACK).lineWidth(0.5).stroke()
+  doc.font('Helvetica').fontSize(7.6).fillColor('#ffffff').text(title, left + 4, y + 6, {
     width: totalW - 8,
     align: 'center',
   })
@@ -406,9 +408,9 @@ function drawVerificationHeader(doc, title, widths) {
   let x = left
   const labels = ['Item', 'Si', 'No', 'Observaciones']
   labels.forEach((label, i) => {
-    doc.rect(x, y + 17, widths[i], 16).fillColor(TEAL).fill()
-    doc.rect(x, y + 17, widths[i], 16).strokeColor(BLACK).lineWidth(0.5).stroke()
-    doc.font('Helvetica').fontSize(7.6).fillColor('#ffffff').text(label, x + 2, y + 21, {
+    doc.rect(x, y + headerHeight, widths[i], labelRowHeight).fillColor(TEAL).fill()
+    doc.rect(x, y + headerHeight, widths[i], labelRowHeight).strokeColor(BLACK).lineWidth(0.5).stroke()
+    doc.font('Helvetica').fontSize(7.6).fillColor('#ffffff').text(label, x + 2, y + headerHeight + 5, {
       width: widths[i] - 4,
       align: 'center',
       lineBreak: false,
@@ -416,7 +418,7 @@ function drawVerificationHeader(doc, title, widths) {
     x += widths[i]
   })
 
-  doc.y = y + 33
+  doc.y = y + headerHeight + labelRowHeight
 }
 
 function drawVerificationBlock(doc, title, rows, state) {
@@ -485,7 +487,7 @@ function drawConvenio(doc, data, state) {
     '7. Seguridad de vehículos de carga, contenedores, remolques y semirremolques.',
     '8. Seguridad del personal.',
     '9. Seguridad de la información y documentación.',
-    '10. Capacitación en seguridad y concientización.',
+    '10. Capacitación en seguridad y concienciación.',
     '11. Manejo e investigación de incidentes.',
   ]
 
@@ -594,12 +596,14 @@ export function generarCuestionarioSeguridadSocioComercial(data) {
     state
   )
 
+  doc.y += 6
+
   drawVerificationBlock(
     doc,
     'Verificación indicadores para detectar clientes o proveedores que podrían no ser legítimos.  La siguiente sección no se cuestiona al socio comercial. Se verifica con responsable de socios comerciales y Documentadores o en su caso personal que tiene contacto con la empresa.',
     [
       'Realiza pagos en efectivo o solicita realizarlo',
-      'Realiza pagos por encima de la tarifa estandar',
+      'Realiza pagos por encima de la tarifa estándar',
       'Tiene poco conocimiento de la mercancía o no proporciona información técnica',
       'Es evasivo',
       'No proporciona información de contacto',
@@ -665,6 +669,5 @@ export function generarCuestionarioSeguridadSocioComercial(data) {
     doc.image(getFrontendImg('sauvinon.png'), doc.page.margins.left, doc.page.margins.top, { width: 120 }).moveDown(2)
   }
 
-  doc.end()
   return doc
 }

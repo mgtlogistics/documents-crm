@@ -91,6 +91,7 @@ router.post('/convenio-seguridad', async (req, res) => {
 })
 
 router.post('/cuestionario-seguridad', async (req, res) => {
+  console.log(123)
   try {
 
     const userData = await Staff.findById(req.body.userId)
@@ -106,7 +107,9 @@ router.post('/cuestionario-seguridad', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
 
     doc.pipe(res)
+    doc.end()
   } catch (error) {
+    console.log(error)
     return res.status(500).json({
       message: 'No fue posible generar el cuestionario de seguridad',
       error: error.message,

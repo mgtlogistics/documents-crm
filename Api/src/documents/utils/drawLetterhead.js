@@ -6,7 +6,7 @@ const drawLetterhead = (doc, data) => {
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right
   let yPosition = doc.page.margins.top
   const gap = 4;
-  const logoHeight = 42;
+  const baseLogoHeight = 42;
   const logoTextGap = 10;
 
   const { exteriorNumber, street, postalCode, city, state } = data?.user?.address || {}
@@ -18,7 +18,7 @@ const drawLetterhead = (doc, data) => {
   const logoPath = data.user?.letterhead ? getFrontendImg(data.user.letterhead) : null
   const logoImage = logoPath && fs.existsSync(logoPath) ? doc.openImage(logoPath) : null
   const estimatedTextHeight = doc.heightOfString(textLines, { width: width })
-  const logoHeight = logoImage ? Math.max(42, estimatedTextHeight) : 0
+  const logoHeight = logoImage ? Math.max(baseLogoHeight, estimatedTextHeight) : 0
   const logoWidth = logoImage ? (logoImage.width * logoHeight) / logoImage.height : 0
 
   if (logoPath && logoImage) {
