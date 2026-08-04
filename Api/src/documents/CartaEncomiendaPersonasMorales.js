@@ -21,7 +21,7 @@ const getLegalRepresentativeFullName = (company = {}) => {
 }
 
 export function generarCartaEncomiendaPersonasMorales(data) {
-  const doc = new PDFDocument({ size: 'LETTER', margin: 65 })
+  const doc = new PDFDocument({ size: 'LETTER', margin: 60 })
   const AUTOCOMP = '(autocompletado)'
   const company = data?.user?.company || {}
   const powerOfAttorney = company?.powerOfAttorney || {}
@@ -35,7 +35,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
   const notaryCity = powerNotary?.city || company?.notaryCity || 'No llenado'
   const notaryState = powerNotary?.state || company?.notaryState || 'No llenado'
 
-  const countMoveDowns = 0.8;
+  const countMoveDowns = 0.7;
 
 
   const powerDateText = dayjs(powerDate).toDate().toLocaleDateString('es-MX', {
@@ -69,7 +69,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     .text('ACCESO AL ITN No. 22, Int.')
     .text('COLONIA UNIDAD DEPORTIVA, C.P. 84063')
     .text('NOGALES, SONORA.')
-    .moveDown(2)
+    .moveDown(1.5)
 
 
   const encomiendaParagraph1 = [
