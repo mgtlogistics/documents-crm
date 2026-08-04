@@ -21,7 +21,7 @@ const getLegalRepresentativeFullName = (company = {}) => {
 }
 
 export function generarCartaEncomiendaPersonasMorales(data) {
-  const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
+  const doc = new PDFDocument({ size: 'LETTER', margin: 65 })
   const AUTOCOMP = '(autocompletado)'
   const company = data?.user?.company || {}
   const powerOfAttorney = company?.powerOfAttorney || {}
@@ -34,6 +34,8 @@ export function generarCartaEncomiendaPersonasMorales(data) {
   const notaryName = powerNotary?.name || company?.notaryName || 'No llenado'
   const notaryCity = powerNotary?.city || company?.notaryCity || 'No llenado'
   const notaryState = powerNotary?.state || company?.notaryState || 'No llenado'
+
+  const countMoveDowns = 0.8;
 
 
   const powerDateText = dayjs(powerDate).toDate().toLocaleDateString('es-MX', {
@@ -112,7 +114,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
   ];
 
   createStylizedParagraph(doc, encomiendaParagraph1, paragraphOptions)
-  doc.moveDown(0.8)
+  doc.moveDown(countMoveDowns)
 
   const encomiendaParagraph2 = [
     { text: 'En términos de los Artículos 40, 59, fracción III, segundo párrafo y 81 de la Ley Aduanera vigente, en relación con el artículo 81 del Reglamento de la Ley Aduanera en vigor, procedo encomendar y conferir el encargo a su favor, en su carácter de ' },
@@ -127,7 +129,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     { text: '01 de enero de 2026 al 31 de diciembre de 2026.', isBold: true }
   ];
   createStylizedParagraph(doc, encomiendaParagraph2, paragraphOptions)
-  doc.moveDown(0.8)
+  doc.moveDown(countMoveDowns)
 
   const encomiendaParagraph3 = [
     { text: 'Reconozco y acepto expresamente que, conforme a la legislación aduanera vigente y sus reformas, la ' },
@@ -137,7 +139,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     { text: 'por lo que: ' }
   ];
   createStylizedParagraph(doc, encomiendaParagraph3, paragraphOptions)
-  doc.moveDown(0.8)
+  doc.moveDown(countMoveDowns)
 
   const encomiendaIncisos = [
     // Inciso a)
@@ -264,10 +266,10 @@ export function generarCartaEncomiendaPersonasMorales(data) {
       doc.addPage()
     }
     createStylizedParagraph(doc, inciso, paragraphOptions);
-    doc.moveDown(0.8); // Espaciado controlado entre cada inciso
+    doc.moveDown(countMoveDowns); // Espaciado controlado entre cada inciso
   });
 
-  doc.moveDown(1.4)
+  doc.moveDown(1.2)
 
 
   doc
