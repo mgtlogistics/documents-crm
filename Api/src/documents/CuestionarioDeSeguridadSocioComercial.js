@@ -112,7 +112,7 @@ function drawCoverHeader(doc, data) {
 
   doc
     .font('Helvetica-Bold')
-    .fontSize(14)
+    .fontSize(10)
     .fillColor(BLACK)
     .text('Cuestionario de Seguridad para Socio Comercial', left, doc.page.margins.top + 10, {
       width,
@@ -120,7 +120,7 @@ function drawCoverHeader(doc, data) {
     })
 
   const introY = doc.page.margins.top + 52
-  const introH = 58
+  const introH = 64
   doc.rect(left + 42, introY, width - 42, introH).strokeColor(BLACK).lineWidth(0.8).stroke()
 
   doc
@@ -250,7 +250,8 @@ function formatValue(value) {
 
 function drawMainSection(doc, title, rows, state) {
   const left = doc.page.margins.left
-  const widths = [30, 42, 340, 34, 34, 160]
+  // En portrait (carta con margen 36), el ancho util es 540pt.
+  const widths = [24, 34, 280, 26, 26, 150]
   const tableWidth = widths.reduce((a, b) => a + b, 0)
   let sectionScore = 0
   let sectionMaxScore = 0
@@ -422,7 +423,8 @@ function drawVerificationHeader(doc, title, widths) {
 }
 
 function drawVerificationBlock(doc, title, rows, state) {
-  const widths = [430, 60, 60, 170]
+  // Ajuste para evitar desbordamiento horizontal en formato vertical.
+  const widths = [270, 40, 40, 190]
   ensureSpace(doc, 70, state)
   drawVerificationHeader(doc, title, widths)
 
@@ -530,7 +532,7 @@ function drawConvenio(doc, data, state) {
 export function generarCuestionarioSeguridadSocioComercial(data) {
   const doc = new PDFDocument({
     size: 'LETTER',
-    layout: 'landscape',
+    layout: 'portrait',
     margin: 36,
     bufferPages: true,
   })
@@ -659,14 +661,12 @@ export function generarCuestionarioSeguridadSocioComercial(data) {
   const rightSignatureBottomY = doc.y
   doc.y = Math.max(leftSignatureBottomY, rightSignatureBottomY) + 8
 
-
-
-  drawFooter(doc, state.page, state.totalPages)
-
   const range = doc.bufferedPageRange();
+  const totalPages = range.count
   for (let i = range.start; i < range.start + range.count; i++) {
     doc.switchToPage(i); // Nos movemos a la página 'i'
     doc.image(getFrontendImg('sauvinon.png'), doc.page.margins.left, doc.page.margins.top, { width: 120 }).moveDown(2)
+    drawFooter(doc, i + 1, totalPages)
   }
 
   return doc

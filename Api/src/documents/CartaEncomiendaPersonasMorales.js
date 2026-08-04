@@ -49,13 +49,15 @@ export function generarCartaEncomiendaPersonasMorales(data) {
   }
 
   drawLetterhead(doc, data)
-  drawPlaceOfIssuance(doc, data, { preserveCursor: false, y: 150 + doc.currentLineHeight() })
+  drawPlaceOfIssuance(doc, data, { preserveCursor: true, y: 165 + doc.currentLineHeight() })
+
+
 
   doc
     .font('Helvetica-Bold')
     .fontSize(14)
     .text('CARTA ENCOMIENDA', { align: 'center', width: doc.page.width - doc.page.margins.left - doc.page.margins.right })
-    .moveDown(0.5)
+    .moveDown(2.5)
 
   doc
     .font('Helvetica-Bold')

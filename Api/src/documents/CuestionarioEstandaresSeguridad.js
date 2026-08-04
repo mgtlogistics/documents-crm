@@ -143,7 +143,7 @@ function dibujarSeccion(doc, titulo, items, left, estado) {
 }
 
 export function generarCuestionarioEstandaresSeguridad() {
-  const doc  = new PDFDocument({ size: 'LETTER', margin: 40 })
+  const doc  = new PDFDocument({ size: 'LETTER', layout: 'portrait', margin: 40 })
   const left = doc.page.margins.left
   const w    = doc.page.width - doc.page.margins.left - doc.page.margins.right
   const TOTAL_PAGS = 3

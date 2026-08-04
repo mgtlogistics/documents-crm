@@ -28,6 +28,7 @@ export function generarCartaProtestaPersonaMoral(data) {
   const contentLeft = doc.page.margins.left
   const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right
   const company = data?.user?.company || {}
+  const address = data?.user?.address || {}
   const legalRepresentativeName = getLegalRepresentativeFullName(company)
   const powerOfAttorney = company?.powerOfAttorney || {}
   const powerNotary = powerOfAttorney?.notary || {}
@@ -40,14 +41,21 @@ export function generarCartaProtestaPersonaMoral(data) {
   const notaryName = powerNotary?.name || company?.notaryName || 'No llenado'
   const notaryCity = powerNotary?.city || company?.notaryCity || 'No llenado'
   const notaryState = powerNotary?.state || company?.notaryState || 'No llenado'
+  const companyName = company?.socialReason || 'No llenado'
+  const companyRfc = company?.rfc || 'No llenado'
+  const placeDescription = data?.place_description || 'No llenado'
+  const materialItems = Array.isArray(data?.material) ? data.material : []
 
-  const powerDateFormatted = powerDate.toDate().toLocaleDateString('es-MX', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
-
-  console.log(data)
+  const powerDateFormatted = (() => {
+    const parsedDate = dayjs(powerDate)
+    return parsedDate.isValid()
+      ? parsedDate.toDate().toLocaleDateString('es-MX', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : 'No llenado'
+  })()
 
   const ensureSpace = (requiredHeight = 40) => {
     if (doc.y + requiredHeight > pageBottom()) {
@@ -123,7 +131,6 @@ export function generarCartaProtestaPersonaMoral(data) {
 
   // Párrafo Inicial Estilizado
   doc.x = contentLeft
-  const address = data?.user?.address || {}
   const domicilioFiscal = `${address.street || ''} NO. ${address.exteriorNumber || ''} ${address.neighborhood || ''} ${address.city || ''} ${address.state || ''} ${address.country || ''} ${address.zipCode || ''}, C.P. ${address.postalCode || ''}`
 
   createStylizedParagraph(
@@ -134,9 +141,9 @@ export function generarCartaProtestaPersonaMoral(data) {
       { text: ', en mi carácter de ' },
       { text: 'representante legal', isBold: true },
       { text: ' de ' },
-      { text: data.user.company.socialReason, isBold: true },
+      { text: companyName, isBold: true },
       { text: ', con ' },
-      { text: `RFC ${data.user.company.rfc}`, isBold: true },
+      { text: `RFC ${companyRfc}`, isBold: true },
       { text: ', y con domicilio fiscal en ' },
       { text: domicilioFiscal, isBold: true },
       { text: ', acreditando mi personalidad mediante ' },
@@ -171,7 +178,7 @@ export function generarCartaProtestaPersonaMoral(data) {
   doc
     .font('Helvetica-Bold')
     .fontSize(12.5)
-    .text(data.place_description)
+    .text(placeDescription)
     .moveDown(0.5)
 
   // Reseteamos X tras salir de las líneas de inmueble
@@ -198,7 +205,7 @@ export function generarCartaProtestaPersonaMoral(data) {
     )
     .moveDown(0.35)
 
-  data?.material.forEach((element, i) => {
+  materialItems.forEach((element, i) => {
     const text = toRoman(i + 1) + ". " + element
     doc.font('Helvetica-Bold').fontSize(12).text(text, contentLeft + 20, doc.y, { width: contentWidth - 20, align: 'justify' }).moveDown(0.35)
   })
@@ -265,13 +272,13 @@ export function generarCartaProtestaPersonaMoral(data) {
   doc
     .font('Helvetica-Bold')
     .fontSize(15)
-    .text(data.user.company.socialReason, { align: 'center', width: contentWidth })
+    .text(companyName, { align: 'center', width: contentWidth })
     .moveDown(2.8)
 
   doc.font('Helvetica').text('_________________________________', { align: 'center', width: contentWidth }).moveDown(0.7)
 
   doc.font('Helvetica-Bold').fontSize(12.5).text(legalRepresentativeName, { align: 'center', width: contentWidth }).moveDown(0.35)
-  doc.font('Helvetica-Bold').fontSize(12.5).text(`RFC ${data.user.company.rfc}`, { align: 'center', width: contentWidth }).moveDown(0.35)
+  doc.font('Helvetica-Bold').fontSize(12.5).text(`RFC ${companyRfc}`, { align: 'center', width: contentWidth }).moveDown(0.35)
   doc.font('Helvetica-Bold').fontSize(12.5).text('Representante Legal', { align: 'center', width: contentWidth })
 
   doc.end()
