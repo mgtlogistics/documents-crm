@@ -18,6 +18,7 @@ import Clients from "./routes/clients/page";
 import Home from "./routes/Home";
 import DocumentRequests from "./routes/requests/page";
 import ProfileInformation from "./routes/profileInformation/page";
+import DocumentsFoldersPage from "./routes/documentsFolders/page";
 
 function RequireCompletedProfile() {
   const isProfileComplete = useAuthStore((state) => state.user?.isProfileComplete)
@@ -109,6 +110,12 @@ const router = createBrowserRouter([
             path: "documents",
             element: <ProtectedModule page="Documents" type="read" method="block" >
               <Home />
+            </ProtectedModule>,
+          },
+          {
+            path: "document-folders",
+            element: <ProtectedModule page="Documents" type="read" method="block" >
+              <DocumentsFoldersPage />
             </ProtectedModule>,
           },
           {

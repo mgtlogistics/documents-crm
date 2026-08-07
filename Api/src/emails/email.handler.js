@@ -3,6 +3,7 @@ import React from "react"
 
 import { transporter } from "../config/email.config.js"
 
+import { ExpedienteCompletadoEmail } from "./mails/ExpedienteCompletadoEmail.js"
 import { WelcomeEmail } from "./mails/WelcomeEmail.js"
 
 export const sendWelcomeEmail = async (client, brand) => {
@@ -43,4 +44,45 @@ export const sendWelcomeEmail = async (client, brand) => {
 
 export const sendNewSubscriptionEmail = async (client, subscription, brand) => {
 
+}
+
+export const sendDocumentRequestCompletedEmail = async (documentRequest, zipBuffer, zipFileName) => {
+  const completionDate = documentRequest?.zipSentAt
+    ? new Date(documentRequest.zipSentAt).toLocaleString("es-MX")
+    : new Date().toLocaleString("es-MX")
+
+  const uploads = Array.isArray(documentRequest?.uploads)
+    ? documentRequest.uploads.map((upload) => ({
+        title: upload?.uploadCatalogId?.title || upload?.uploadCatalogId?.key || upload?.uploadCatalogId || "Archivo",
+        key: upload?.uploadCatalogId?.key || "",
+        description: upload?.uploadCatalogId?.description || "",
+        status: upload?.status || "",
+        fileName: upload?.fileName || "",
+        uploadedAt: upload?.uploadedAt || null,
+      }))
+    : []
+
+  const emailHtml = await render(
+    React.createElement(ExpedienteCompletadoEmail, {
+      requestId: documentRequest?._id,
+      userId: documentRequest?.userId,
+      presetTitle: documentRequest?.presetId?.title || "",
+      assignedAdminEmail: documentRequest?.assignedAdminEmail || "",
+      completionDate,
+      uploads,
+    })
+  )
+
+  return transporter.sendMail({
+    from: `"${process.env.EMAIL_NAME || "Tu Empresa"}" <${process.env.EMAIL_FROM}>`,
+    to: documentRequest?.assignedAdminEmail,
+    subject: `Expediente completado ${documentRequest?._id || ""}`.trim(),
+    html: emailHtml,
+    attachments: [
+      {
+        filename: zipFileName,
+        content: zipBuffer,
+      },
+    ],
+  })
 }

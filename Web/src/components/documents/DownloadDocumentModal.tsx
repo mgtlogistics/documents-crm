@@ -99,6 +99,7 @@ interface StructureResponse {
 interface DownloadDocumentModalProps {
   documentId: string
   documentRequestId?: string | null
+  formProgressId?: string | null
   onSuccess?: () => void | Promise<void>
   trigger?: React.ReactNode
   open?: boolean
@@ -262,6 +263,7 @@ function normalizePrimitiveForPayload(field: DocumentField, rawValue: unknown) {
 export default function DownloadDocumentModal({
   documentId,
   documentRequestId = null,
+  formProgressId = null,
   onSuccess,
   trigger,
   open: controlledOpen,
@@ -502,9 +504,15 @@ export default function DownloadDocumentModal({
 
       if (documentRequestId) {
         try {
-          await api.patch(`/api/document-requests/${documentRequestId}/status`, {
-            status: "completed",
-          })
+          if (formProgressId) {
+            await api.patch(`/api/document-requests/${documentRequestId}/forms/${formProgressId}/status`, {
+              status: "completed",
+            })
+          } else {
+            await api.patch(`/api/document-requests/${documentRequestId}/status`, {
+              status: "completed",
+            })
+          }
         } catch {
           toast.warn("El documento se genero, pero no fue posible actualizar la solicitud")
         }

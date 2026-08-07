@@ -22,6 +22,7 @@ export function generarCartaProtesta(data) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
   const AUTOCOMP = '(autocompletado)'
   const company = data?.user?.company || {}
+  const address = data?.user?.address || {}
   const legalRepresentativeName = getLegalRepresentativeFullName(company)
   const powerOfAttorney = company?.powerOfAttorney || {}
   const powerNotary = powerOfAttorney?.notary || {}
@@ -34,12 +35,20 @@ export function generarCartaProtesta(data) {
   const notaryName = powerNotary?.name || company?.notaryName || 'No llenado'
   const notaryCity = powerNotary?.city || company?.notaryCity || 'No llenado'
   const notaryState = powerNotary?.state || company?.notaryState || 'No llenado'
+  const companyName = company?.socialReason || 'No llenado'
+  const companyRfc = company?.rfc || 'No llenado'
 
-    const powerDateFormatted = powerDate.toDate().toLocaleDateString('es-MX', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
+  const powerDateFormatted = (() => {
+    const parsedDate = dayjs(powerDate)
+
+    return parsedDate.isValid()
+      ? parsedDate.toDate().toLocaleDateString('es-MX', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : 'No llenado'
+  })()
 
 
   const paragraphOptions = {
@@ -72,7 +81,6 @@ export function generarCartaProtesta(data) {
     .text('A quien corresponda', { align: 'left' })
   doc.text('Presente.', { align: 'left' }).moveDown(0.8)
 
-  const address = data?.user?.address || {}
   const domicilioFiscal = `${address.street || ''} ${address.exteriorNumber || ''} ${address.interiorNumber || ''} ${address.neighborhood || ''} ${address.city || ''} ${address.state || ''} ${address.country || ''} ${address.zipCode || ''}, C.P. ${address.postalCode || ''}`
 
 
@@ -84,9 +92,9 @@ export function generarCartaProtesta(data) {
       { text: ', en mi carácter de ' },
       { text: 'representante legal', isBold: true },
       { text: ' de ' },
-      { text: data.user.company.socialReason, isBold: true },
+      { text: companyName, isBold: true },
       { text: ', con ' },
-      { text: `RFC ${data.user.company.rfc}`, isBold: true },
+      { text: `RFC ${companyRfc}`, isBold: true },
       { text: ', y con domicilio fiscal en ' },
       { text: domicilioFiscal, isBold: true },
       { text: ', acreditando mi personalidad mediante ' },
@@ -137,14 +145,14 @@ export function generarCartaProtesta(data) {
   doc
     .font('Helvetica')
     .fontSize(9.5)
-    .text(data?.user?.company?.socialReason || '', { align: 'center' })
+    .text(companyName || '', { align: 'center' })
     .moveDown(1.8)
 
   doc
     .text('_________________________________', { align: 'center' })
     .text('Nombre y firma', { align: 'center' })
     .text(legalRepresentativeName, { align: 'center' })
-    .text(data.user.company.rfc, { align: 'center' })
+    .text(companyRfc, { align: 'center' })
 
   doc.end()
   return doc

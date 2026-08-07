@@ -1,10 +1,23 @@
 import DocumentRequest from "../models/DocumentRequest.js";
 
+const GLOBAL_STATUSES = new Set(["pending", "in_progress", "completed", "sent"])
+
+export const documentRequestPopulate = [
+	{ path: "presetId", select: "title userType" },
+	{ path: "forms.documentId", select: "key name downloadEndpoint userType status" },
+	{ path: "uploads.uploadCatalogId", select: "key title description maxSizeMB allowedExtensions isActive" },
+]
+
 export async function updateDocumentRequestStatus(documentRequestId, newStatus) {
-	const updatePayload = {
-		status: newStatus,
-		completedAt: newStatus === "completed" ? new Date() : null,
-	};
+	if (!GLOBAL_STATUSES.has(newStatus)) {
+		throw new Error("Status de solicitud invalido")
+	}
+
+	const updatePayload = { status: newStatus }
+
+	if (newStatus === "sent") {
+		updatePayload.zipSentAt = new Date()
+	}
 
 	const documentRequest = await DocumentRequest.findByIdAndUpdate(
 		documentRequestId,
@@ -14,7 +27,7 @@ export async function updateDocumentRequestStatus(documentRequestId, newStatus) 
 			runValidators: true,
 		}
 	)
-		.populate("documentId")
+		.populate(documentRequestPopulate)
 		.lean();
 
 	if (!documentRequest) {

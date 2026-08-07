@@ -7,8 +7,8 @@ services:
       - databaseUrl=mongodb://Sys73mUs3r:AddzTMW4ciJ5CzZiiMBF@mongodb:27017/documents?authSource=admin
       - jwtSecret=YxoSrXRQTjdOaUGfEXewIOhG
       - PORT=3010
-      - EmailSend=itsaltilloquentli@gmail.com
-      - EmailPasswordApp=bioqricozxcgrdqp
+      - EmailSend=chopiinrevision2524@gmail.com
+      - EmailPasswordApp=csiybnyqxunejuiv
     # NOTA: Eliminamos la sección 'ports' ("3010:3010"). 
     # El tráfico de internet entrará por el Nginx original y llegará aquí de forma interna.
     networks:

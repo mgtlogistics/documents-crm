@@ -23,11 +23,13 @@
   "dependencies": {
     "@react-email/components": "^1.0.9",
     "@react-email/render": "^2.0.4",
+    "axios": "^1.19.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dayjs": "^1.11.20",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "jszip": "^3.10.1",
     "mongoose": "^9.1.5",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",

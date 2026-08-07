@@ -69,7 +69,7 @@ export function generarCartaEncomiendaPersonasMorales(data) {
     .text('ACCESO AL ITN No. 22, Int.')
     .text('COLONIA UNIDAD DEPORTIVA, C.P. 84063')
     .text('NOGALES, SONORA.')
-    .moveDown(1.5)
+    .moveDown(1.5 )
 
 
   const encomiendaParagraph1 = [
