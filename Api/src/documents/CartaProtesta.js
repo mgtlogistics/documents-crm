@@ -43,10 +43,10 @@ export function generarCartaProtesta(data) {
 
     return parsedDate.isValid()
       ? parsedDate.toDate().toLocaleDateString('es-MX', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        })
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
       : 'No llenado'
   })()
 
@@ -59,6 +59,12 @@ export function generarCartaProtesta(data) {
 
 
 
+
+
+
+  drawLetterhead(doc, data)
+
+  doc.moveDown(1.5)
   doc
     .font('Helvetica-Bold')
     .fontSize(13)
@@ -72,9 +78,8 @@ export function generarCartaProtesta(data) {
     .moveDown(1)
 
 
-  drawLetterhead(doc, data)
   drawPlaceOfIssuance(doc, data, { preserveCursor: true })
-  
+
   doc
     .font('Helvetica-Bold')
     .fontSize(10)
