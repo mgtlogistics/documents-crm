@@ -1,4 +1,4 @@
-import createStylizedParagraph from '../../createStylizedParagraph.js'
+import createStylizedParagraph from '../../utils/createStylizedParagraph.js'
 import { drawPageNumber, getContentLeft, getContentWidth } from '../helpers/layout.js'
 
 function writeRich(doc, fragments, options = {}) {

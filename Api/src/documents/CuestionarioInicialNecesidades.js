@@ -1,5 +1,5 @@
 import PDFDocument from 'pdfkit'
-import drawStyledFooter from './drawStyledFooter.js'
+import drawStyledFooter from './utils/drawStyledFooter.js'
 
 const C_GRAY = '#D8D8D8'
 const C_BLUE = '#C9D7EE'

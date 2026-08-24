@@ -1,5 +1,5 @@
 import PDFDocument from 'pdfkit'
-import createPdfList from './createPdfList.js'
+import createPdfList from './utils/createPdfList.js'
 
 /**
  * Escribe un título de sección o cláusula asegurando el control del eje X

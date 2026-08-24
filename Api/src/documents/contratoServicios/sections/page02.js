@@ -1,6 +1,6 @@
 import { drawPageNumber } from '../helpers/layout.js'
 import { writeLabel, writeParagraph } from '../helpers/writers.js'
-import createStylizedParagraph from '../../createStylizedParagraph.js'
+import createStylizedParagraph from '../../utils/createStylizedParagraph.js'
 
 function writeRichParagraph(doc, fragmentos, opciones = {}) {
   const paragraphOptions = {

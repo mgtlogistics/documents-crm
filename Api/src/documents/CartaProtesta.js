@@ -1,5 +1,5 @@
 import PDFDocument from 'pdfkit'
-import createStylizedParagraph from './createStylizedParagraph.js'
+import createStylizedParagraph from './utils/createStylizedParagraph.js'
 import dayjs from 'dayjs'
 import drawLetterhead from './utils/drawLetterhead.js'
 import drawPlaceOfIssuance from './utils/drawPlaceOfIssuance.js'

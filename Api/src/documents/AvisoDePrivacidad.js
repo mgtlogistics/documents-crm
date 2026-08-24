@@ -1,9 +1,9 @@
 import PDFDocument from 'pdfkit'
-import createStylizedParagraph from './createStylizedParagraph.js'
-import writeParagraphTitle from './writeParagraphTitle.js'
-import createSignatureBox from './createSignatureBox.js'
-import drawStyledHeader from './drawStyledHeader.js'
-import drawStyledFooter from './drawStyledFooter.js'
+import createStylizedParagraph from './utils/createStylizedParagraph.js'
+import writeParagraphTitle from './utils/writeParagraphTitle.js'
+import createSignatureBox from './utils/createSignatureBox.js'
+import drawStyledHeader from './utils/drawStyledHeader.js'
+import drawStyledFooter from './utils/drawStyledFooter.js'
 
 
 

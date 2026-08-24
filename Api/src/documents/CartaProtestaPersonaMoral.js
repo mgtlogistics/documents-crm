@@ -1,9 +1,6 @@
 import PDFDocument from 'pdfkit'
 import dayjs from 'dayjs'
-import createStylizedParagraph from './createStylizedParagraph.js'
-
-import fs from "fs"
-import { getFrontendImg } from '../utils/public.utils.js'
+import createStylizedParagraph from './utils/createStylizedParagraph.js'
 import drawLetterhead from './utils/drawLetterhead.js'
 import drawPlaceOfIssuance from './utils/drawPlaceOfIssuance.js'
 import toRoman from './utils/toRoman.js'

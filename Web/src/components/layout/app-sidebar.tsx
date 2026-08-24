@@ -2,16 +2,21 @@
 
 import * as React from "react"
 import {
-  FileChartColumn,
-  // ShoppingCart,
-  SquareTerminal,
-  User,
+  Boxes,
+  BriefcaseBusiness,
   CalendarDays,
-
-
+  ClipboardList,
+  FileChartColumn,
+  FolderOpen,
+  LayoutDashboard,
+  MapPinned,
+  PanelsTopLeft,
+  ReceiptText,
+  ShieldCheck,
+  Store,
+  User,
 } from "lucide-react"
 
-import { NavMain } from "@/components/layout/nav-main"
 import { NavProjects } from "@/components/layout/nav-projects"
 import { NavUser } from "@/components/layout/nav-user"
 import { TeamSwitcher } from "@/components/layout/team-switcher"
@@ -24,41 +29,31 @@ import {
 } from "@/components/ui/sidebar"
 import { useAuthStore } from "@/store/authStore"
 
-// This is sample data.
 const data = {
-  navMain: [
-    {
-      title: "Administración",
-      url: "#",
-      icon: SquareTerminal,
-      isActive: true,
-      items: [
-        // {
-        //   title: "Tiendas",
-        //   url: "/stores",
-        // },
-      ],
-    },
-  ],
   projects: [
-
     {
       name: "Inicio",
       url: "/",
       moduleName: "Dashboard",
-      icon: FileChartColumn,
+      icon: LayoutDashboard,
     },
     {
       name: "Roles",
       url: "/roles",
-      icon: SquareTerminal,
+      icon: ShieldCheck,
       moduleName: "Roles",
     },
     {
       name: "Páginas",
       url: "/pages",
-      icon: SquareTerminal,
+      icon: PanelsTopLeft,
       moduleName: "Pages",
+    },
+    {
+      name: "Tiendas",
+      url: "/stores",
+      icon: Store,
+      moduleName: "Stores",
     },
     {
       name: "Usuarios",
@@ -67,44 +62,53 @@ const data = {
       moduleName: "Staff",
     },
     {
+      name: "Clientes",
+      url: "/clients",
+      icon: BriefcaseBusiness,
+      moduleName: "Staff",
+    },
+    {
+      name: "Inventario",
+      url: "/inventory",
+      icon: Boxes,
+      moduleName: "Inventory",
+    },
+    {
+      name: "Ventas y facturación",
+      url: "/sales",
+      icon: ReceiptText,
+      moduleName: "Sales",
+    },
+    {
+      name: "Horarios",
+      url: "/schedule",
+      icon: CalendarDays,
+      moduleName: "Schedule",
+    },
+    {
       name: "Documentos",
       url: "/documents",
       icon: FileChartColumn,
       moduleName: "Documents",
     },
     {
+      name: "Carpetas de documentos",
+      url: "/document-folders",
+      icon: FolderOpen,
+      moduleName: "Documents",
+    },
+    {
       name: "Documentación",
       url: "/requests",
-      icon: CalendarDays,
+      icon: ClipboardList,
       moduleName: "Requests",
     },
-    
     {
       name: "Información fiscal",
       url: "/profileInformation",
-      icon: User,
+      icon: MapPinned,
       moduleName: "Requests",
-    }
-    // {
-    //   name: "Clientes",
-    //   url: "/clients",
-    //   icon: Users,
-    // },
-    // {
-    //   name: "Inventario",
-    //   url: "/inventory",
-    //   icon: FileChartColumn,
-    // },
-    // {
-    //   name: "Ventas y Facturación",
-    //   url: "/sales",
-    //   icon: ShoppingCart,
-    // },
-    // {
-    //   name: "Horarios",
-    //   url: "/schedule",
-    //   icon: CalendarDays,
-    // },
+    },
   ],
 }
 
@@ -118,7 +122,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <TeamSwitcher />
       </SidebarHeader>
       <SidebarContent>
-        {/* <NavMain items={data.navMain} /> */}
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>

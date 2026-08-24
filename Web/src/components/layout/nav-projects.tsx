@@ -26,14 +26,14 @@ export function NavProjects({
 }) {
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+    <SidebarGroup>
       <SidebarMenu>
         {projects.map((item) => (
           <ProtectedModule key={item.name} page={item.moduleName} type="read" method="hide">
             <SidebarMenuItem key={item.name}>
-              <SidebarMenuButton asChild>
-                <Link to={item.url}>
-                  <item.icon />
+              <SidebarMenuButton asChild tooltip={item.name}>
+                <Link to={item.url} className="flex items-center gap-2">
+                  <item.icon className="shrink-0" aria-hidden="true" />
                   <span>{item.name}</span>
                 </Link>
               </SidebarMenuButton>

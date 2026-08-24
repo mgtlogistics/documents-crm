@@ -1,11 +1,11 @@
 import PDFDocument from 'pdfkit'
 import dayjs from 'dayjs'
 
-import createStylizedParagraph from './createStylizedParagraph.js'
-import createPdfList from './createPdfList.js'
-import drawStyledHeader from './drawStyledHeader.js'
-import drawStyledFooter from './drawStyledFooter.js'
-import createSignatureBox from './createSignatureBox.js'
+import createStylizedParagraph from './utils/createStylizedParagraph.js'
+import createPdfList from './utils/createPdfList.js'
+import drawStyledHeader from './utils/drawStyledHeader.js'
+import drawStyledFooter from './utils/drawStyledFooter.js'
+import createSignatureBox from './utils/createSignatureBox.js'
 
 function drawHeader(doc, pageNumber) {
   const left = doc.page.margins.left

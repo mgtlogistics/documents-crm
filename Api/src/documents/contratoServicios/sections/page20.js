@@ -1,4 +1,4 @@
-import createStylizedParagraph from '../../createStylizedParagraph.js'
+import createStylizedParagraph from '../../utils/createStylizedParagraph.js'
 import { drawPageNumber, getContentWidth } from '../helpers/layout.js'
 import { writeLabel } from '../helpers/writers.js'
 

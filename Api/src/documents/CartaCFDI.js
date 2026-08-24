@@ -1,8 +1,6 @@
 import PDFDocument from 'pdfkit'
-import createStylizedParagraph from './createStylizedParagraph.js'
-import createSignatureBox from './createSignatureBox.js'
-
-import dayjs from 'dayjs'
+import createStylizedParagraph from './utils/createStylizedParagraph.js'
+import createSignatureBox from './utils/createSignatureBox.js'
 import drawLetterhead from './utils/drawLetterhead.js'
 import drawPlaceOfIssuance from './utils/drawPlaceOfIssuance.js'
 

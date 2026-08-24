@@ -23,6 +23,7 @@ import { generarPoliticaTrabajoForzoso } from '../documents/PoliticaTrabajoForzo
 import { generarContratoServiciosProfesionales } from '../documents/contratoServicios/main.js'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es.js'
+import { generarCartaEncomiendaLeonel } from '../documents/CartaEncomiendaLeonel.js'
 
 dayjs.locale('es')
 
@@ -209,7 +210,7 @@ router.post('/carta-encomienda', async (req, res) => {
       user: userData,
     }
     console.log(data)
-    const doc = generarCartaDeEncomienda(data)
+    const doc = generarCartaEncomiendaLeonel(data)
 
     const fileName = 'carta-encomienda.pdf'
     res.setHeader('Content-Type', 'application/pdf')
