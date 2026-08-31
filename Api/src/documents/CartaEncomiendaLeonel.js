@@ -79,12 +79,15 @@ export function generarCartaEncomiendaLeonel(data) {
     { text: address.postalCode || 'No llenado', isBold: true },
     { text: ', con Registro Federal de Contribuyentes ' },
     { text: company.rfc || 'No llenado', isBold: true },
-    { text: ', personalidad que acredito conforme al Poder Notarial número ' },
+    { text: ', personalidad que acredito conforme al ' },
+    { text: ' Poder Notarial ', isBold: true },
+    { text: ' número ' },
     { text: powerNumber, isBold: true },
-    { text: ', volumen ' },
+    { text: ', ' },
+    { text: 'volumen ', isBold: true },
     { text: powerVolume, isBold: true },
-    { text: ', otorgado ante la fe del Notario Público número ' },
-    { text: notaryNumber, isBold: true },
+    { text: ', otorgado ante la fe del ' },
+    { text: `Notario Público número ${notaryNumber}`, isBold: true },
     { text: ', Lic. ' },
     { text: notaryName, isBold: true },
     { text: ', manifiesto lo siguiente:' },
@@ -95,15 +98,18 @@ export function generarCartaEncomiendaLeonel(data) {
   const appointment = [
     { text: 'Por medio de la presente, ' },
     { text: 'ENCOMIENDO y CONFIERO EL ENCARGO ', isBold: true },
-    { text: 'a su favor, en su carácter de titular de la Patente Aduanal número ' },
-    { text: '1615', isBold: true },
-    { text: ', para que, a nombre y por cuenta exclusiva de mi representada, realice el ' },
+    { text: 'a su favor, en su carácter de ' },
+    { text: ' titular de la Patente Aduanal número 1615', isBold: true },
+    { text: ', para que, ' },
+    { text: 'a nombre y por cuenta exclusiva de mi representada', isBold: true },
+    { text: ', realice el ' },
     { text: 'despacho aduanero ', isBold: true },
     { text: 'de las mercancías de ' },
     { text: 'importación y/o exportación ', isBold: true },
     { text: 'que se efectúen por las aduanas de ' },
     { text: 'REYNOSA', isBold: true },
-    { text: ', así como por sus respectivas Secciones Aduaneras.' },
+    { text: ', así como por sus respectivas' },
+    { text: ' Secciones Aduaneras.', iasBold: true },
   ]
   createStylizedParagraph(doc, appointment, paragraphOptions)
   doc.moveDown(paragraphSpacing)
@@ -111,7 +117,9 @@ export function generarCartaEncomiendaLeonel(data) {
   createStylizedParagraph(doc, [
     { text: 'El presente mandato se otorga con ' },
     { text: 'vigencia indefinida, ', isBold: true },
-    { text: 'a partir de la fecha de su firma, y permanecerá vigente hasta en tanto no sea revocada expresamente por escrito por mi representada.' },
+    { text: 'a partir de la fecha de su firma, y permanecerá vigente hasta en tanto no sea ' },
+    { text: ' revocada expresamente por escrito', isBold: true },
+    { text: ' por mi representada.' },
   ], paragraphOptions)
   doc.moveDown(paragraphSpacing)
 
