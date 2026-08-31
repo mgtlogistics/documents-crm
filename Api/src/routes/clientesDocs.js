@@ -24,6 +24,10 @@ import { generarContratoServiciosProfesionales } from '../documents/contratoServ
 import dayjs from 'dayjs'
 import 'dayjs/locale/es.js'
 import { generarCartaEncomiendaLeonel } from '../documents/CartaEncomiendaLeonel.js'
+import { generarContratoPrestacionServiciosAgenteAduanalLeonel } from '../documents/ContratoPrestacionServiciosAgenteAduanalLeonel.js'
+import { generarInformacionClienteNuevo } from '../documents/InformacionClienteNuevo.js'
+import { generarManifestacionMaterialidadLeonel } from '../documents/ManifestacionMaterialidadLeonel.js'
+import { generarCertificacionOrigenTMEC } from '../documents/CertificacionOrigenTMEC.js'
 
 dayjs.locale('es')
 
@@ -361,6 +365,167 @@ router.get('/contrato-prestacion-servicios', async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       message: 'No fue posible generar el contrato de prestacion de servicios',
+      error: error.message,
+    })
+  }
+})
+
+router.get('/contrato-prestacion-servicios-leonel', async (req, res) => {
+  try {
+    const doc = generarContratoPrestacionServiciosAgenteAduanalLeonel()
+
+    const fileName = 'contrato-prestacion-servicios-leonel.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      message: 'No fue posible generar el contrato de prestacion de servicios',
+      error: error.message,
+    })
+  }
+})
+
+router.post('/contrato-prestacion-servicios-leonel', async (req, res) => {
+  try {
+    const userData = await Staff.findById(req.body.userId)
+    const data = {
+      ...req.body,
+      user: userData,
+    }
+
+    const doc = generarContratoPrestacionServiciosAgenteAduanalLeonel(data)
+
+    const fileName = 'contrato-prestacion-servicios-leonel.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      message: 'No fue posible generar el contrato de prestacion de servicios',
+      error: error.message,
+    })
+  }
+})
+
+router.get('/informacion-cliente-nuevo', async (req, res) => {
+  try {
+    const doc = generarInformacionClienteNuevo()
+
+    const fileName = 'informacion-cliente-nuevo.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      message: 'No fue posible generar el formato de informacion de cliente nuevo',
+      error: error.message,
+    })
+  }
+})
+
+router.post('/informacion-cliente-nuevo', async (req, res) => {
+  try {
+    const userData = await Staff.findById(req.body.userId)
+    const data = {
+      ...req.body,
+      user: userData,
+    }
+    const doc = generarInformacionClienteNuevo(data)
+
+    const fileName = 'informacion-cliente-nuevo.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      message: 'No fue posible generar el formato de informacion de cliente nuevo',
+      error: error.message,
+    })
+  }
+})
+
+router.get('/manifestacion-materialidad-leonel', async (req, res) => {
+  try {
+    const doc = generarManifestacionMaterialidadLeonel()
+
+    const fileName = 'manifestacion-materialidad-leonel.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      message: 'No fue posible generar la manifestacion de materialidad',
+      error: error.message,
+    })
+  }
+})
+
+router.post('/manifestacion-materialidad-leonel', async (req, res) => {
+  try {
+    const userData = await Staff.findById(req.body.userId)
+    const data = {
+      ...req.body,
+      user: userData,
+    }
+
+    const doc = generarManifestacionMaterialidadLeonel(data)
+
+    const fileName = 'manifestacion-materialidad-leonel.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      message: 'No fue posible generar la manifestacion de materialidad',
+      error: error.message,
+    })
+  }
+})
+
+router.get('/certificacion-origen-tmec', async (req, res) => {
+  try {
+    const doc = generarCertificacionOrigenTMEC()
+
+    const fileName = 'certificacion-origen-tmec.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      message: 'No fue posible generar la certificacion de origen T-MEC',
+      error: error.message,
+    })
+  }
+})
+
+router.post('/certificacion-origen-tmec', async (req, res) => {
+  try {
+    const doc = generarCertificacionOrigenTMEC(req.body)
+
+    const fileName = 'certificacion-origen-tmec.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      message: 'No fue posible generar la certificacion de origen T-MEC',
       error: error.message,
     })
   }
