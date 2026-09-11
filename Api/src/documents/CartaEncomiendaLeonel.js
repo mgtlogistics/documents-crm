@@ -53,6 +53,7 @@ export function generarCartaEncomiendaLeonel(data) {
     .fontSize(10.5)
     .text('A.A. LEONEL ERNESTO CANTU LOZANO.')
     .text('Patente 1615')
+    .font('Helvetica')
     .text('Presente.')
     .moveDown(1.35)
 
@@ -81,7 +82,7 @@ export function generarCartaEncomiendaLeonel(data) {
     { text: company.rfc || 'No llenado', isBold: true },
     { text: ', personalidad que acredito conforme al ' },
     { text: ' Poder Notarial ', isBold: true },
-    { text: ' número ' },
+    { text: ' número ', isBold: true },
     { text: powerNumber, isBold: true },
     { text: ', ' },
     { text: 'volumen ', isBold: true },
@@ -107,9 +108,9 @@ export function generarCartaEncomiendaLeonel(data) {
     { text: 'de las mercancías de ' },
     { text: 'importación y/o exportación ', isBold: true },
     { text: 'que se efectúen por las aduanas de ' },
-    { text: 'REYNOSA', isBold: true },
+    { text: 'REYNOSA', isBold: true, isUnderlined: true },
     { text: ', así como por sus respectivas' },
-    { text: ' Secciones Aduaneras.', iasBold: true },
+    { text: ' Secciones Aduaneras.' },
   ]
   createStylizedParagraph(doc, appointment, paragraphOptions)
   doc.moveDown(paragraphSpacing)
@@ -180,7 +181,9 @@ export function generarCartaEncomiendaLeonel(data) {
     [
       { text: 'g) ', isBold: true },
       { text: 'Mi mandante declara bajo protesta de decir verdad que ' },
-      { text: 'no se encuentra listado en los supuestos previstos en los artículos 69, 69-B y 69-B Bis del Código Fiscal de la Federación, ', isBold: true },
+      { text: 'no se encuentra listado ', isBold: true },
+      { text: 'en los supuestos previstos en los artículos ' },
+      { text: ' 69, 69-B y 69-B Bis del Código Fiscal de la Federación, ', isBold: true },
       { text: 'ni mantiene relación con contribuyentes incluidos en dichos listados, obligándose a mantener ' },
       { text: 'indemne ', isBold: true },
       { text: 'al Agente Aduanal frente a cualquier contingencia que derive del incumplimiento de esta declaración.' },
@@ -238,7 +241,7 @@ export function generarCartaEncomiendaLeonel(data) {
   }
 
   doc
-    .font('Helvetica')
+    .font('Helvetica-Bold')
     .fontSize(9.5)
     .text('Protesto lo necesario.')
     .moveDown(4.5)

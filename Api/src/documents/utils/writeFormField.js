@@ -17,7 +17,7 @@ export default function writeFormField(doc, label, value = '', options = {}) {
 
   doc.font('Helvetica').fontSize(fontSize).text(value ? String(value) : '', { continued: false })
 
-  const lineY = textBaselineY + doc.currentLineHeight() - 3
+  const lineY = textBaselineY + doc.currentLineHeight() 
   doc
     .moveTo(lineStartX, lineY)
     .lineTo(lineStartX + lineWidth, lineY)

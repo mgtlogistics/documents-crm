@@ -4,7 +4,7 @@ export default function drawLabeledBox(doc, { x, y, width = 220, label = '', val
 
   if (label) {
     doc.font('Helvetica-Bold').fontSize(fontSize).fillColor('#000000').text(label, x, cursorY, { width })
-    cursorY = doc.y + 1
+    cursorY = doc.y - 2
   }
 
   doc.rect(x, cursorY, width, boxHeight).fillColor(fill).fill()
