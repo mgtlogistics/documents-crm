@@ -28,6 +28,7 @@ import { generarContratoPrestacionServiciosAgenteAduanalLeonel } from '../docume
 import { generarInformacionClienteNuevo } from '../documents/InformacionClienteNuevo.js'
 import { generarManifestacionMaterialidadLeonel } from '../documents/ManifestacionMaterialidadLeonel.js'
 import { generarCertificacionOrigenTMEC } from '../documents/CertificacionOrigenTMEC.js'
+import { generarCartaDeclaracionDeslindePCST } from '../documents/CartaDeclaracionDeslindePCST.js'
 
 dayjs.locale('es')
 
@@ -526,6 +527,47 @@ router.post('/certificacion-origen-tmec', async (req, res) => {
     console.error(error)
     return res.status(500).json({
       message: 'No fue posible generar la certificacion de origen T-MEC',
+      error: error.message,
+    })
+  }
+})
+
+router.get('/carta-declaracion-deslinde-pcst', async (req, res) => {
+  try {
+    const doc = generarCartaDeclaracionDeslindePCST()
+
+    const fileName = 'carta-declaracion-deslinde-pcst.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      message: 'No fue posible generar la carta de declaracion y deslinde PCST',
+      error: error.message,
+    })
+  }
+})
+
+router.post('/carta-declaracion-deslinde-pcst', async (req, res) => {
+  try {
+    const userData = req.body.userId ? await Staff.findById(req.body.userId) : null
+    const data = {
+      ...req.body,
+      user: userData,
+    }
+    const doc = generarCartaDeclaracionDeslindePCST(data)
+
+    const fileName = 'carta-declaracion-deslinde-pcst.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    doc.pipe(res)
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      message: 'No fue posible generar la carta de declaracion y deslinde PCST',
       error: error.message,
     })
   }
