@@ -11,6 +11,19 @@ const YesNoConfigSchema = new mongoose.Schema({
   commentRequired: { type: Boolean, default: false },
 }, { _id: false });
 
+// Sub-schema para cada propiedad de un objeto dentro de object_list
+const ObjectItemFieldSchema = new mongoose.Schema({
+  key: { type: String, required: true, trim: true },
+  tag: { type: String, required: true, trim: true },
+  description: { type: String, default: '' },
+  dataType: {
+    type: String,
+    required: true,
+    enum: ['string', 'number', 'boolean', 'file'],
+  },
+  required: { type: Boolean, default: false },
+}, { _id: false });
+
 // Sub-schema base para campos
 const FieldConfigSchema = new mongoose.Schema({
   fieldKey: { type: String, required: true, trim: true },
@@ -18,12 +31,13 @@ const FieldConfigSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-    enum: ['text', 'number', 'date', 'select', 'checkbox', 'textarea', 'yes_no_comment', 'string_list'],
+    enum: ['text', 'number', 'date', 'select', 'checkbox', 'textarea', 'yes_no_comment', 'string_list', 'object_list'],
   },
   required: { type: Boolean, default: false },
   placeholder: { type: String, default: '' },
   options: { type: [FieldOptionSchema], default: undefined },
   yesNoConfig: { type: YesNoConfigSchema, default: undefined },
+  objectFields: { type: [ObjectItemFieldSchema], default: undefined },
   validations: {
     min: Number,
     max: Number,

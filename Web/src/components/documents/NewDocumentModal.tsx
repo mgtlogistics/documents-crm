@@ -24,6 +24,9 @@ type FieldType =
   | "textarea"
   | "yes_no_comment"
   | "string_list"
+  | "object_list"
+
+type ObjectFieldDataType = "string" | "number" | "boolean" | "file"
 
 interface FieldOption {
   label: string
@@ -35,6 +38,14 @@ interface YesNoConfig {
   commentRequired: boolean
 }
 
+interface ObjectFieldConfig {
+  key: string
+  tag: string
+  description: string
+  dataType: ObjectFieldDataType
+  required: boolean
+}
+
 interface FieldConfig {
   fieldKey: string
   tag: string
@@ -43,6 +54,7 @@ interface FieldConfig {
   placeholder: string
   options: FieldOption[]
   yesNoConfig?: YesNoConfig
+  objectFields?: ObjectFieldConfig[]
 }
 
 interface SectionConfig {
@@ -68,12 +80,30 @@ const FIELD_TYPES: { label: string; value: FieldType }[] = [
   { label: "Area de texto", value: "textarea" },
   { label: "Si/No con observaciones", value: "yes_no_comment" },
   { label: "Lista dinamica de texto", value: "string_list" },
+  { label: "Lista de objetos", value: "object_list" },
+]
+
+const OBJECT_FIELD_DATA_TYPES: { label: string; value: ObjectFieldDataType }[] = [
+  { label: "Texto", value: "string" },
+  { label: "Numero", value: "number" },
+  { label: "Si/No", value: "boolean" },
+  { label: "Archivo", value: "file" },
 ]
 
 function emptyYesNoConfig(): YesNoConfig {
   return {
     commentPlaceholder: "Observaciones...",
     commentRequired: false,
+  }
+}
+
+function emptyObjectField(): ObjectFieldConfig {
+  return {
+    key: "",
+    tag: "",
+    description: "",
+    dataType: "string",
+    required: false,
   }
 }
 
@@ -128,6 +158,12 @@ export default function NewDocumentModal({ onSuccess }: NewDocumentModalProps) {
       yesNoConfig:
         nextType === "yes_no_comment"
           ? field.yesNoConfig ?? emptyYesNoConfig()
+          : undefined,
+      objectFields:
+        nextType === "object_list"
+          ? field.objectFields && field.objectFields.length > 0
+            ? field.objectFields
+            : [emptyObjectField()]
           : undefined,
     }
   }
@@ -325,11 +361,76 @@ export default function NewDocumentModal({ onSuccess }: NewDocumentModalProps) {
     )
   }
 
+  function addObjectField(sectionIndex: number, fieldIndex: number) {
+    setSections((prev) =>
+      prev.map((section, currentSectionIndex) =>
+        currentSectionIndex === sectionIndex
+          ? {
+              ...section,
+              fields: section.fields.map((field, currentFieldIndex) =>
+                currentFieldIndex === fieldIndex
+                  ? { ...field, objectFields: [...(field.objectFields ?? []), emptyObjectField()] }
+                  : field
+              ),
+            }
+          : section
+      )
+    )
+  }
+
+  function removeObjectField(sectionIndex: number, fieldIndex: number, objectFieldIndex: number) {
+    setSections((prev) =>
+      prev.map((section, currentSectionIndex) =>
+        currentSectionIndex === sectionIndex
+          ? {
+              ...section,
+              fields: section.fields.map((field, currentFieldIndex) =>
+                currentFieldIndex === fieldIndex
+                  ? {
+                      ...field,
+                      objectFields: (field.objectFields ?? []).filter(
+                        (_, currentObjectFieldIndex) => currentObjectFieldIndex !== objectFieldIndex
+                      ),
+                    }
+                  : field
+              ),
+            }
+          : section
+      )
+    )
+  }
+
+  function handleObjectFieldChange(
+    sectionIndex: number,
+    fieldIndex: number,
+    objectFieldIndex: number,
+    patch: Partial<ObjectFieldConfig>
+  ) {
+    setSections((prev) =>
+      prev.map((section, currentSectionIndex) =>
+        currentSectionIndex === sectionIndex
+          ? {
+              ...section,
+              fields: section.fields.map((field, currentFieldIndex) =>
+                currentFieldIndex === fieldIndex
+                  ? {
+                      ...field,
+                      objectFields: (field.objectFields ?? []).map((objectField, currentObjectFieldIndex) =>
+                        currentObjectFieldIndex === objectFieldIndex ? { ...objectField, ...patch } : objectField
+                      ),
+                    }
+                  : field
+              ),
+            }
+          : section
+      )
+    )
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     setError(null)
     setLoading(true)
-
     try {
       await api.post("/api/documents", { ...form, sections })
       setOpen(false)
@@ -513,6 +614,13 @@ export default function NewDocumentModal({ onSuccess }: NewDocumentModalProps) {
                           handleOptionChange(sectionIndex, fieldIndex, optionIndex, key, value)
                         }
                         onYesNoConfigChange={(patch) => updateYesNoConfig(sectionIndex, fieldIndex, patch)}
+                        onAddObjectField={() => addObjectField(sectionIndex, fieldIndex)}
+                        onRemoveObjectField={(objectFieldIndex) =>
+                          removeObjectField(sectionIndex, fieldIndex, objectFieldIndex)
+                        }
+                        onObjectFieldChange={(objectFieldIndex, patch) =>
+                          handleObjectFieldChange(sectionIndex, fieldIndex, objectFieldIndex, patch)
+                        }
                       />
                     ))}
                   </div>
@@ -555,6 +663,9 @@ interface FieldRowProps {
   onRemoveOption: (optionIndex: number) => void
   onOptionChange: (optionIndex: number, key: "label" | "value", value: string) => void
   onYesNoConfigChange: (patch: Partial<YesNoConfig>) => void
+  onAddObjectField: () => void
+  onRemoveObjectField: (objectFieldIndex: number) => void
+  onObjectFieldChange: (objectFieldIndex: number, patch: Partial<ObjectFieldConfig>) => void
 }
 
 function FieldRow({
@@ -571,6 +682,9 @@ function FieldRow({
   onRemoveOption,
   onOptionChange,
   onYesNoConfigChange,
+  onAddObjectField,
+  onRemoveObjectField,
+  onObjectFieldChange,
 }: FieldRowProps) {
   return (
     <div className="relative flex flex-col gap-3 rounded-lg border p-4">
@@ -686,6 +800,93 @@ function FieldRow({
               >
                 <Trash2Icon className="size-4" />
               </Button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {field.type === "object_list" ? (
+        <div className="mt-1 flex flex-col gap-2 border-t pt-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">
+              Campos del objeto (cada elemento de la lista tendra estos campos)
+            </span>
+            <Button type="button" variant="outline" size="sm" onClick={onAddObjectField}>
+              <PlusIcon className="size-3" />
+              Campo
+            </Button>
+          </div>
+
+          {(field.objectFields ?? []).map((objectField, objectFieldIndex) => (
+            <div key={objectFieldIndex} className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label>Clave (key)</Label>
+                <Input
+                  value={objectField.key}
+                  onChange={(event) => onObjectFieldChange(objectFieldIndex, { key: event.target.value })}
+                  placeholder="Ej: doc, name, qty"
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label>Etiqueta (tag)</Label>
+                <Input
+                  value={objectField.tag}
+                  onChange={(event) => onObjectFieldChange(objectFieldIndex, { tag: event.target.value })}
+                  placeholder="Ej: Documento"
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <Label>Descripcion (ayuda para el formulario)</Label>
+                <Input
+                  value={objectField.description}
+                  onChange={(event) => onObjectFieldChange(objectFieldIndex, { description: event.target.value })}
+                  placeholder="Descripcion opcional"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label>Tipo de dato</Label>
+                <select
+                  value={objectField.dataType}
+                  onChange={(event) =>
+                    onObjectFieldChange(objectFieldIndex, { dataType: event.target.value as ObjectFieldDataType })
+                  }
+                  className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1"
+                >
+                  {OBJECT_FIELD_DATA_TYPES.map((dataType) => (
+                    <option key={dataType.value} value={dataType.value}>
+                      {dataType.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-end justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={objectField.required}
+                    onChange={(event) => onObjectFieldChange(objectFieldIndex, { required: event.target.checked })}
+                    className="size-4 rounded border"
+                  />
+                  <Label>Obligatorio</Label>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onRemoveObjectField(objectFieldIndex)}
+                  className="shrink-0 text-destructive hover:text-destructive"
+                  disabled={(field.objectFields ?? []).length <= 1}
+                >
+                  <Trash2Icon className="size-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

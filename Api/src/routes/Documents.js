@@ -1,6 +1,7 @@
 import express from "express";
 import Document from "../models/Document.js";
 import DocumentStructure from "../models/DocumentStructure.js";
+import { uploadDocumentFieldFile } from "../utils/public.utils.js";
 
 const router = express.Router();
 
@@ -14,7 +15,9 @@ const ALLOWED_FIELD_TYPES = new Set([
   "textarea",
   "yes_no_comment",
   "string_list",
+  "object_list",
 ]);
+const ALLOWED_OBJECT_DATA_TYPES = new Set(["string", "number", "boolean", "file"]);
 
 const normalizeField = (field = {}) => {
   const normalized = {
@@ -39,6 +42,18 @@ const normalizeField = (field = {}) => {
           : "Observaciones...",
       commentRequired: Boolean(field.yesNoConfig.commentRequired),
     };
+  }
+
+  if (Array.isArray(field.objectFields) && field.objectFields.length > 0) {
+    normalized.objectFields = field.objectFields
+      .filter((objectField) => objectField && typeof objectField.key === "string" && objectField.key.trim())
+      .map((objectField) => ({
+        key: objectField.key.trim(),
+        tag: typeof objectField.tag === "string" && objectField.tag.trim() ? objectField.tag.trim() : objectField.key.trim(),
+        description: typeof objectField.description === "string" ? objectField.description : "",
+        dataType: ALLOWED_OBJECT_DATA_TYPES.has(objectField.dataType) ? objectField.dataType : "string",
+        required: Boolean(objectField.required),
+      }));
   }
 
   if (field.validations && typeof field.validations === "object") {
@@ -110,6 +125,25 @@ router.get("/", async (req, res) => {
   } catch (error) {
     return res.status(500).json({ message: "Error al obtener documentos", error: error.message });
   }
+});
+
+// ─── UPLOAD FILE FOR object_list FIELDS ──────────────────────────────────────
+// POST /api/documents/upload-field-file
+router.post("/upload-field-file", (req, res) => {
+  uploadDocumentFieldFile(req, res, (error) => {
+    if (error) {
+      return res.status(400).json({ message: "No fue posible subir el archivo", error: error.message });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "El archivo es requerido" });
+    }
+
+    return res.status(200).json({
+      fileUrl: `/publics/uploads/document-fields/${req.file.filename}`,
+      fileName: req.file.originalname,
+    });
+  });
 });
 
 // ─── GET BY ID (document + structure) ────────────────────────────────────────

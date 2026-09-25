@@ -480,6 +480,9 @@ router.post('/manifestacion-materialidad-leonel', async (req, res) => {
       user: userData,
     }
 
+    console.log(data)
+    console.log('tite')
+
     const doc = generarManifestacionMaterialidadLeonel(data)
 
     const fileName = 'manifestacion-materialidad-leonel.pdf'
@@ -516,6 +519,7 @@ router.get('/certificacion-origen-tmec', async (req, res) => {
 
 router.post('/certificacion-origen-tmec', async (req, res) => {
   try {
+    console.log(req.body)
     const doc = generarCertificacionOrigenTMEC(req.body)
 
     const fileName = 'certificacion-origen-tmec.pdf'

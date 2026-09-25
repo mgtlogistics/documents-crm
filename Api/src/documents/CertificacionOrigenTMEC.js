@@ -19,6 +19,21 @@ function drawFooterPage(doc, pageNumber) {
   //   })
 }
 
+function extractGroup(obj, prefix) {
+  return Object.entries(obj).reduce((acc, [key, value]) => {
+    if (key.startsWith(prefix)) {
+      // Elimina el prefijo del nombre de la propiedad
+      const newKey = key.slice(prefix.length);
+
+      // Convierte la primera letra a minúscula (si existe)
+      const formattedKey = newKey.charAt(0).toLowerCase() + newKey.slice(1);
+
+      acc[formattedKey] = value;
+    }
+    return acc;
+  }, {});
+}
+
 function drawContactBlock(doc, { x, y, width, title, contact = {} }) {
   let cursorY = y
 
@@ -43,20 +58,18 @@ export function generarCertificacionOrigenTMEC(data = {}) {
   doc.on('pageAdded', () => drawDoubleBorder(doc, { margin: 18 }))
 
   const certifierType = CERTIFIER_TYPES.includes(data.certifierType) ? data.certifierType : null
-  const certifier = data.certifier || {}
-  const exporter = data.exporter || {}
-  const importer = data.importer || {}
+  const certifier = extractGroup(data, 'certifier')
+  const exporter = extractGroup(data, 'exporter')
+  const importer = extractGroup(data, 'importer')
   const producerText = data.producerText
     || (data.producer && formatFullAddress(data.producer))
     || 'AVAILABLE UPON REQUEST BY THE IMPORTING AUTHORITIES'
-  const goods = Array.isArray(data.goods) && data.goods.length > 0
-    ? data.goods
-    : [{ description: '', hsCode: '', originCriteria: 'A', countryOfOrigin: 'MEX' }]
-  const blanketFrom = data.blanketPeriod?.from || '01 / 01 / 2026'
-  const blanketTo = data.blanketPeriod?.to || '31 / 12 / 2026'
-  const signatureDate = data.signature?.date || '01 / 01 / 2026'
-  const signatureName = data.signature?.name || ''
-  const signatureTitle = data.signature?.title || ''
+  const goods = [{ description:data.description, hsCode: data.hsCode, originCriteria: 'A', countryOfOrigin: 'MEX' }]
+  const blanketFrom = data.blanketPeriodFrom || '01 / 01 / 2026'
+  const blanketTo = data.blanketPeriodTo || '31 / 12 / 2026'
+  const signatureDate = data.signatureDate || '01 / 01 / 2026'
+  const signatureName = data.signatureName || ''
+  const signatureTitle = data.signatureTitle || ''
 
   // ENCABEZADO
   doc.x = left
@@ -87,7 +100,8 @@ export function generarCertificacionOrigenTMEC(data = {}) {
   checkboxLabels.forEach(({ key, label }) => {
     doc.rect(checkboxX, checkboxY - 2, 9, 9).strokeColor('#000000').lineWidth(0.6).stroke()
     if (certifierType === key) {
-      doc.font('Helvetica-Bold').fontSize(8).text('X', checkboxX + 1.5, checkboxY - 2.5)
+      //Revisar
+      doc.font('Helvetica-Bold').fontSize(8).text('X', checkboxX + 1.5, checkboxY)
     }
     doc.font('Helvetica').fontSize(9).text(label, checkboxX + 13, checkboxY - 1)
     checkboxX += 13 + doc.widthOfString(label) + 18

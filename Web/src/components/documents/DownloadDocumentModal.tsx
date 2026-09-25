@@ -33,6 +33,9 @@ type FieldType =
   | "textarea"
   | "yes_no_comment"
   | "string_list"
+  | "object_list"
+
+type ObjectFieldDataType = "string" | "number" | "boolean" | "file"
 type ApiUserRole = "client" | "company"
 
 const CLIENT_ROLE_ID = "6a156a603a5d7ea978fbb13c"
@@ -59,6 +62,21 @@ interface YesNoConfig {
   commentRequired?: boolean
 }
 
+interface ObjectFieldConfig {
+  key: string
+  tag: string
+  description?: string
+  dataType: ObjectFieldDataType
+  required?: boolean
+}
+
+interface ObjectFileValue {
+  fileUrl: string
+  fileName: string
+}
+
+type ObjectItemValue = Record<string, string | number | boolean | ObjectFileValue | undefined>
+
 interface DocumentField {
   fieldKey: string
   tag: string
@@ -68,6 +86,7 @@ interface DocumentField {
   options?: FieldOption[]
   validations?: FieldValidations
   yesNoConfig?: YesNoConfig
+  objectFields?: ObjectFieldConfig[]
 }
 
 interface DocumentSection {
@@ -112,9 +131,18 @@ interface RoleUser {
   subtitle?: string
 }
 
-type FieldValue = string | boolean | YesNoValue | string[]
+type FieldValue = string | boolean | YesNoValue | string[] | ObjectItemValue[]
 type FieldValues = Record<string, FieldValue>
 type ListDraftValues = Record<string, string>
+type ObjectDraftValues = Record<string, ObjectItemValue>
+
+function defaultObjectDraft(objectFields: ObjectFieldConfig[] = []): ObjectItemValue {
+  const draft: ObjectItemValue = {}
+  objectFields.forEach((objectField) => {
+    draft[objectField.key] = objectField.dataType === "boolean" ? false : ""
+  })
+  return draft
+}
 
 function normalizeField(field: DocumentField): DocumentField {
   return {
@@ -131,6 +159,16 @@ function normalizeField(field: DocumentField): DocumentField {
           commentPlaceholder: field.yesNoConfig?.commentPlaceholder ?? "Observaciones...",
           commentRequired: Boolean(field.yesNoConfig?.commentRequired),
         }
+        : undefined,
+    objectFields:
+      field.type === "object_list"
+        ? (field.objectFields ?? []).map((objectField) => ({
+            key: objectField.key,
+            tag: objectField.tag,
+            description: objectField.description ?? "",
+            dataType: objectField.dataType,
+            required: Boolean(objectField.required),
+          }))
         : undefined,
   }
 }
@@ -166,7 +204,34 @@ function getInitialValue(field: DocumentField): FieldValue {
   if (field.type === "checkbox") return false
   if (field.type === "yes_no_comment") return { answer: "NO", comment: "" }
   if (field.type === "string_list") return []
+  if (field.type === "object_list") return []
   return ""
+}
+
+function getObjectItemError(objectFields: ObjectFieldConfig[], item: ObjectItemValue): string | null {
+  for (const objectField of objectFields) {
+    const value = item[objectField.key]
+
+    if (objectField.dataType === "boolean") continue
+
+    if (objectField.dataType === "file") {
+      if (objectField.required && !value) {
+        return `${objectField.tag} es requerido`
+      }
+      continue
+    }
+
+    const isEmpty = value === undefined || value === null || String(value).trim() === ""
+    if (objectField.required && isEmpty) {
+      return `${objectField.tag} es requerido`
+    }
+
+    if (!isEmpty && objectField.dataType === "number" && Number.isNaN(Number(value))) {
+      return `${objectField.tag} debe ser un número válido`
+    }
+  }
+
+  return null
 }
 
 function getPrimitiveFieldError(field: DocumentField, rawValue: unknown): string | null {
@@ -236,6 +301,16 @@ function getFieldError(field: DocumentField, rawValue: unknown): string | null {
     return null
   }
 
+  if (field.type === "object_list") {
+    const items = Array.isArray(rawValue) ? (rawValue as ObjectItemValue[]) : []
+
+    if (field.required && items.length === 0) {
+      return `${field.tag} requiere al menos un elemento`
+    }
+
+    return null
+  }
+
   return getPrimitiveFieldError(field, rawValue)
 }
 
@@ -277,6 +352,8 @@ export default function DownloadDocumentModal({
   const [sections, setSections] = useState<DocumentSection[]>([])
   const [values, setValues] = useState<FieldValues>({})
   const [listDrafts, setListDrafts] = useState<ListDraftValues>({})
+  const [objectDrafts, setObjectDrafts] = useState<ObjectDraftValues>({})
+  const [uploadingObjectFile, setUploadingObjectFile] = useState<Record<string, boolean>>({})
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [requestError, setRequestError] = useState<string | null>(null)
   const [users, setUsers] = useState<RoleUser[]>([])
@@ -315,6 +392,8 @@ export default function DownloadDocumentModal({
     setSections([])
     setValues({})
     setListDrafts({})
+    setObjectDrafts({})
+    setUploadingObjectFile({})
     setFieldErrors({})
     setRequestError(null)
     setUsers([])
@@ -334,12 +413,16 @@ export default function DownloadDocumentModal({
 
         const initialValues: FieldValues = {}
         const initialListDrafts: ListDraftValues = {}
+        const initialObjectDrafts: ObjectDraftValues = {}
 
         responseSections.forEach((section) => {
           section.fields.forEach((field) => {
             initialValues[field.fieldKey] = getInitialValue(field)
             if (field.type === "string_list") {
               initialListDrafts[field.fieldKey] = ""
+            }
+            if (field.type === "object_list") {
+              initialObjectDrafts[field.fieldKey] = defaultObjectDraft(field.objectFields)
             }
           })
         })
@@ -348,6 +431,7 @@ export default function DownloadDocumentModal({
         setSections(responseSections)
         setValues(initialValues)
         setListDrafts(initialListDrafts)
+        setObjectDrafts(initialObjectDrafts)
         setFieldErrors({})
       } catch (err: unknown) {
         const message =
@@ -423,6 +507,62 @@ export default function DownloadDocumentModal({
     setFieldValue(fieldKey, next)
   }
 
+  const updateObjectDraftValue = (
+    fieldKey: string,
+    objectKey: string,
+    value: string | number | boolean | ObjectFileValue
+  ) => {
+    setObjectDrafts((prev) => ({
+      ...prev,
+      [fieldKey]: { ...(prev[fieldKey] ?? {}), [objectKey]: value },
+    }))
+  }
+
+  const handleObjectFileSelect = async (fieldKey: string, objectKey: string, file: File | null) => {
+    if (!file) return
+
+    const uploadKey = `${fieldKey}.${objectKey}`
+    setUploadingObjectFile((prev) => ({ ...prev, [uploadKey]: true }))
+
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const { data } = await api.post<{ fileUrl: string; fileName: string }>(
+        "/api/documents/upload-field-file",
+        formData
+      )
+      updateObjectDraftValue(fieldKey, objectKey, { fileUrl: data.fileUrl, fileName: data.fileName })
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "No fue posible subir el archivo"
+      toast.error(message)
+    } finally {
+      setUploadingObjectFile((prev) => ({ ...prev, [uploadKey]: false }))
+    }
+  }
+
+  const addObjectListItem = (field: DocumentField) => {
+    const objectFields = field.objectFields ?? []
+    const draft = objectDrafts[field.fieldKey] ?? defaultObjectDraft(objectFields)
+
+    const itemError = getObjectItemError(objectFields, draft)
+    if (itemError) {
+      toast.error(itemError)
+      return
+    }
+
+    const current = Array.isArray(values[field.fieldKey]) ? (values[field.fieldKey] as ObjectItemValue[]) : []
+    setFieldValue(field.fieldKey, [...current, draft])
+    setObjectDrafts((prev) => ({ ...prev, [field.fieldKey]: defaultObjectDraft(objectFields) }))
+  }
+
+  const removeObjectListItem = (fieldKey: string, indexToRemove: number) => {
+    const current = Array.isArray(values[fieldKey]) ? (values[fieldKey] as ObjectItemValue[]) : []
+    const next = current.filter((_, index) => index !== indexToRemove)
+    setFieldValue(fieldKey, next)
+  }
+
   const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
     if (event.key !== "Enter") return
 
@@ -473,6 +613,29 @@ export default function DownloadDocumentModal({
             .map((item) => String(item ?? "").trim())
             .filter((item) => item.length > 0)
           acc[field.fieldKey] = normalizedList
+          return
+        }
+
+        if (field.type === "object_list") {
+          const items = Array.isArray(rawValue) ? (rawValue as ObjectItemValue[]) : []
+          acc[field.fieldKey] = items.map((item) => {
+            const normalizedItem: Record<string, unknown> = {}
+            ;(field.objectFields ?? []).forEach((objectField) => {
+              const itemValue = item[objectField.key]
+
+              if (objectField.dataType === "number") {
+                normalizedItem[objectField.key] =
+                  itemValue === undefined || itemValue === "" ? undefined : Number(itemValue)
+              } else if (objectField.dataType === "boolean") {
+                normalizedItem[objectField.key] = Boolean(itemValue)
+              } else if (objectField.dataType === "file") {
+                normalizedItem[objectField.key] = itemValue ?? undefined
+              } else {
+                normalizedItem[objectField.key] = itemValue ?? ""
+              }
+            })
+            return normalizedItem
+          })
           return
         }
 
@@ -755,6 +918,142 @@ export default function DownloadDocumentModal({
                                   >
                                     <Trash2Icon className="size-4" />
                                   </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {field.type === "object_list" ? (
+                            <div className="space-y-3 rounded-md border p-3">
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                {(field.objectFields ?? []).map((objectField) => {
+                                  const draftValue = objectDrafts[field.fieldKey]?.[objectField.key]
+                                  const uploadKey = `${field.fieldKey}.${objectField.key}`
+                                  const isUploading = Boolean(uploadingObjectFile[uploadKey])
+
+                                  return (
+                                    <div className="flex flex-col gap-1.5" key={objectField.key}>
+                                      <Label>
+                                        {objectField.tag}
+                                        {objectField.required ? <span className="text-destructive"> *</span> : null}
+                                      </Label>
+                                      {objectField.description ? (
+                                        <p className="text-xs text-muted-foreground">{objectField.description}</p>
+                                      ) : null}
+
+                                      {objectField.dataType === "string" ? (
+                                        <Input
+                                          value={String(draftValue ?? "")}
+                                          onChange={(event) =>
+                                            updateObjectDraftValue(field.fieldKey, objectField.key, event.target.value)
+                                          }
+                                          disabled={submitting}
+                                        />
+                                      ) : null}
+
+                                      {objectField.dataType === "number" ? (
+                                        <Input
+                                          type="number"
+                                          value={String(draftValue ?? "")}
+                                          onChange={(event) =>
+                                            updateObjectDraftValue(field.fieldKey, objectField.key, event.target.value)
+                                          }
+                                          disabled={submitting}
+                                        />
+                                      ) : null}
+
+                                      {objectField.dataType === "boolean" ? (
+                                        <div className="flex gap-2">
+                                          <Button
+                                            type="button"
+                                            variant={draftValue === true ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => updateObjectDraftValue(field.fieldKey, objectField.key, true)}
+                                            disabled={submitting}
+                                          >
+                                            Si
+                                          </Button>
+                                          <Button
+                                            type="button"
+                                            variant={draftValue === false || draftValue === undefined ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => updateObjectDraftValue(field.fieldKey, objectField.key, false)}
+                                            disabled={submitting}
+                                          >
+                                            No
+                                          </Button>
+                                        </div>
+                                      ) : null}
+
+                                      {objectField.dataType === "file" ? (
+                                        <div className="flex flex-col gap-1">
+                                          <Input
+                                            type="file"
+                                            onChange={(event) =>
+                                              handleObjectFileSelect(
+                                                field.fieldKey,
+                                                objectField.key,
+                                                event.target.files?.[0] ?? null
+                                              )
+                                            }
+                                            disabled={submitting || isUploading}
+                                          />
+                                          {isUploading ? (
+                                            <p className="text-xs text-muted-foreground">Subiendo archivo...</p>
+                                          ) : (draftValue as ObjectFileValue | undefined)?.fileName ? (
+                                            <p className="text-xs text-muted-foreground">
+                                              {(draftValue as ObjectFileValue).fileName}
+                                            </p>
+                                          ) : null}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => addObjectListItem(field)}
+                                disabled={submitting}
+                              >
+                                <PlusCircleIcon className="size-4" />
+                                Agregar elemento
+                              </Button>
+
+                              <div className="space-y-2">
+                                {(Array.isArray(value) ? (value as ObjectItemValue[]) : []).map((item, itemIndex) => (
+                                  <div
+                                    key={`${field.fieldKey}-${itemIndex}`}
+                                    className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2"
+                                  >
+                                    <p className="text-sm">
+                                      {(field.objectFields ?? [])
+                                        .map((objectField) => {
+                                          const itemValue = item[objectField.key]
+                                          if (objectField.dataType === "boolean") {
+                                            return `${objectField.tag}: ${itemValue ? "Si" : "No"}`
+                                          }
+                                          if (objectField.dataType === "file") {
+                                            return `${objectField.tag}: ${(itemValue as ObjectFileValue | undefined)?.fileName ?? "-"}`
+                                          }
+                                          return `${objectField.tag}: ${itemValue ?? "-"}`
+                                        })
+                                        .join(" · ")}
+                                    </p>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="shrink-0 text-destructive hover:text-destructive"
+                                      onClick={() => removeObjectListItem(field.fieldKey, itemIndex)}
+                                      disabled={submitting}
+                                    >
+                                      <Trash2Icon className="size-4" />
+                                    </Button>
                                   </div>
                                 ))}
                               </div>

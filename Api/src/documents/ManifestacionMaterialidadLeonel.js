@@ -1,9 +1,11 @@
+import fs from 'fs'
 import PDFDocument from 'pdfkit'
 import createStylizedParagraph from './utils/createStylizedParagraph.js'
 import drawWrappedTable from './utils/drawWrappedTable.js'
 import getLegalRepresentativeFullName from './utils/getLegalRepresentativeFullName.js'
 import formatFullAddress from './utils/formatFullAddress.js'
 import formatLongDate from './utils/formatLongDate.js'
+import { resolvePublicFilePath } from '../utils/public.utils.js'
 
 const DEFAULT_GOODS = [
   { type: 'Inmueble', description: '[Dirección exacta, metros cuadrados, uso del suelo]', document: '[Ej. Escritura pública / Contrato de arrendamiento]' },
@@ -12,6 +14,83 @@ const DEFAULT_GOODS = [
   { type: 'Medios de Transporte', description: '[Placas, VIN, tipo de vehículo]', document: '[Ej. Tarjeta de circulación / Factura]' },
   { type: 'Otros', description: '[Describir otros medios empleados]', document: '[Ej. Documento legal correspondiente]' },
 ]
+
+// El campo file de cada bien puede llegar como string url o como { fileUrl, fileName }
+function resolveGoodImagePath(file) {
+  if (!file) return null
+
+  const fileUrl = typeof file === 'string' ? file : file.fileUrl || file.url || file.path || null
+  if (!fileUrl) return null
+
+  const localPath = resolvePublicFilePath(fileUrl)
+  return localPath && fs.existsSync(localPath) ? localPath : null
+}
+
+function drawGoodsPhotosAnnex(doc, goods) {
+  const photos = goods
+    .map((item) => ({ item, imagePath: resolveGoodImagePath(item.file) }))
+    .filter(({ imagePath }) => Boolean(imagePath))
+
+  if (photos.length === 0) return
+
+  doc.addPage()
+  doc.x = doc.page.margins.left
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(11)
+    .text('ANEXO FOTOGRÁFICO DE BIENES', { align: 'center' })
+    .moveDown(1)
+
+  const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right
+  const columnGap = 20
+  const columnWidth = (contentWidth - columnGap) / 2
+  const imageHeight = 160
+  const captionGap = 6
+  const rowGap = 18
+  const estimatedRowHeight = imageHeight + captionGap + 28 + rowGap
+
+  let rowTop = doc.y
+  let rowMaxBottom = doc.y
+
+  photos.forEach(({ item, imagePath }, index) => {
+    const columnIndex = index % 2
+
+    if (columnIndex === 0) {
+      if (rowTop + estimatedRowHeight > doc.page.height - doc.page.margins.bottom) {
+        doc.addPage()
+        rowTop = doc.page.margins.top
+      }
+      rowMaxBottom = rowTop
+    }
+
+    const x = doc.page.margins.left + columnIndex * (columnWidth + columnGap)
+
+    try {
+      doc.image(imagePath, x, rowTop, { fit: [columnWidth, imageHeight], align: 'center', valign: 'center' })
+    } catch {
+      // imagen inválida o ilegible, se omite
+    }
+
+    doc.x = x
+    doc.y = rowTop + imageHeight + captionGap
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(8.5)
+      .text(item.type || '', x, doc.y, { width: columnWidth, align: 'center' })
+      .font('Helvetica')
+      .fontSize(8)
+      .text(item.description || '', x, doc.y, { width: columnWidth, align: 'center' })
+
+    rowMaxBottom = Math.max(rowMaxBottom, doc.y)
+
+    if (columnIndex === 1 || index === photos.length - 1) {
+      doc.x = doc.page.margins.left
+      doc.y = rowMaxBottom + rowGap
+      rowTop = doc.y
+    }
+  })
+}
 
 export function generarManifestacionMaterialidadLeonel(data = {}) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 60 })
@@ -94,7 +173,7 @@ export function generarManifestacionMaterialidadLeonel(data = {}) {
   doc
     .font('Helvetica-Bold')
     .fontSize(9.5)
-    .text('[Insertar fotografías de cada uno de los bienes descritos arriba debajo de este párrafo o en un anexo]', {
+    .text('Las fotografías de cada uno de los bienes descritos arriba se incluyen en el anexo fotográfico al final del presente documento.', {
       width: contentWidth,
     })
     .moveDown(1)
@@ -168,6 +247,8 @@ export function generarManifestacionMaterialidadLeonel(data = {}) {
     .text(company?.legalRepresentative?.position || '[Cargo]')
     .text(companyName)
     .text(rfc)
+
+  drawGoodsPhotosAnnex(doc, goods)
 
   doc.end()
   return doc

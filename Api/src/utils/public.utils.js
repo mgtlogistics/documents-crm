@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename);
 
 const images_dir = path.join(__dirname, '..', 'public', 'images');
 const document_requests_dir = path.join(__dirname, '..', 'public', 'uploads', 'document-requests');
+const document_fields_dir = path.join(__dirname, '..', 'public', 'uploads', 'document-fields');
 
 if (!fs.existsSync(images_dir)) {
   fs.mkdirSync(images_dir, { recursive: true });
@@ -19,9 +20,26 @@ if (!fs.existsSync(document_requests_dir)) {
   fs.mkdirSync(document_requests_dir, { recursive: true });
 }
 
+if (!fs.existsSync(document_fields_dir)) {
+  fs.mkdirSync(document_fields_dir, { recursive: true });
+}
+
+const public_dir = path.join(__dirname, '..', 'public');
+
 export const getFrontendImg = (fileName) => {
   return path.join(images_dir, fileName);
 };
+
+// Resuelve una fileUrl como "/publics/uploads/document-fields/xxx.png" a su ruta en disco
+export const resolvePublicFilePath = (fileUrl) => {
+  if (typeof fileUrl !== 'string' || !fileUrl.startsWith('/publics/')) {
+    return null;
+  }
+
+  const relativePath = fileUrl.replace(/^\/publics\//, '');
+  return path.join(public_dir, relativePath);
+};
+
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -69,6 +87,39 @@ const documentRequestStorage = multer.diskStorage({
 
 export const uploadDocumentRequestFile = multer({
   storage: documentRequestStorage,
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedMimeTypes = new Set([
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+    ]);
+    const allowedExtensions = new Set(['.pdf', '.jpeg', '.jpg', '.png']);
+    const extension = path.extname(file.originalname).toLowerCase();
+
+    if (allowedMimeTypes.has(file.mimetype) && allowedExtensions.has(extension)) {
+      return cb(null, true);
+    }
+
+    cb(new Error('Solo se permiten archivos PDF, JPG, JPEG o PNG'));
+  }
+}).single('file');
+
+const documentFieldStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, document_fields_dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueKey = crypto.randomBytes(16).toString('hex');
+    const extension = path.extname(file.originalname).toLowerCase();
+
+    cb(null, `field-${uniqueKey}${extension}`);
+  }
+});
+
+export const uploadDocumentFieldFile = multer({
+  storage: documentFieldStorage,
   limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedMimeTypes = new Set([
