@@ -59,7 +59,7 @@ export function generarContratoPrestacionServiciosAgenteAduanal() {
   )
 
   // 3. SECCIÓN: DECLARACIONES
-  writeSectionTitle(doc, 'DECLARACIONES', contentLeft, contentWidth)
+  writeSectionTitle(doc, 'DECLARACIONESSSS', contentLeft, contentWidth)
 
   writeSectionTitle(doc, 'A) "EL PRESTADOR" declara por conducto de su representante legal:', contentLeft, contentWidth)
   

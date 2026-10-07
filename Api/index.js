@@ -6,8 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import http from "http"
 import { Server } from "socket.io"
 
-import "./src/config/db.config.js"
-import "./src/services/Cronjobs.services.js"
+import { dbReady } from "./src/config/db.config.js"
 import { initializeSocketListeners } from './src/utils/socket.utils.js';
 import { getFrontendImg } from './src/utils/public.utils.js';
 
@@ -67,7 +66,9 @@ const loadRoutes = async () => {
   }
 };
 
-// Ejecutamos la carga antes de iniciar el servidor
+// Esperamos la DB antes de cargar cron, rutas y abrir el puerto
+await dbReady;
+await import("./src/services/Cronjobs.services.js");
 await loadRoutes();
 
 app.get('/', (req, res) => {

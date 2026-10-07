@@ -42,7 +42,7 @@ function drawContactBlock(doc, { x, y, width, title, contact = {} }) {
 
   cursorY = drawLabeledBox(doc, { x, y: cursorY, width, label: 'Nombre/Name:', value: contact.name })
   cursorY = drawLabeledBox(doc, { x, y: cursorY, width, label: 'Cargo/Title:', value: contact.title })
-  cursorY = drawLabeledBox(doc, { x, y: cursorY, width, label: 'Dirección incluido el país/Address including country:', value: contact.address, boxHeight: 20 })
+  cursorY = drawLabeledBox(doc, { x, y: cursorY, width, label: 'Dirección incluido el país/Address including country:', value: contact.address, boxHeight: 20, minLines: 2 })
   cursorY = drawLabeledBox(doc, { x, y: cursorY, width, label: 'Teléfono/phone:', value: contact.phone })
   cursorY = drawLabeledBox(doc, { x, y: cursorY, width, label: 'Correo electrónico/e-mail:', value: contact.email })
 
@@ -80,7 +80,7 @@ export function generarCertificacionOrigenTMEC(data = {}) {
     .font('Helvetica-Bold')
     .fontSize(10)
     .text('Certificación de Origen / Certification of Origin', { align: 'center', width: contentWidth })
-    .moveDown(0.8)
+    .moveDown(0.4)
 
   // 1. CERTIFICADOR
   doc.x = left
@@ -88,7 +88,7 @@ export function generarCertificacionOrigenTMEC(data = {}) {
     .font('Helvetica-Bold')
     .fontSize(9)
     .text('1.- Indique quien certifica el origen/ Indicate who certifies the origin:')
-    .moveDown(0.3)
+    .moveDown(0.4)
 
   const checkboxLabels = [
     { key: 'importer', label: 'Importador / Importer' },
@@ -148,7 +148,7 @@ export function generarCertificacionOrigenTMEC(data = {}) {
     ],
     rows: goods,
   }, { headerFontSize: 7.5, bodyFontSize: 8.5, minRowHeight: 22 })
-  doc.moveDown(0.6)
+  doc.moveDown(0.4)
   doc.x = left
 
   // 8. PERIODO GLOBAL
@@ -172,7 +172,7 @@ export function generarCertificacionOrigenTMEC(data = {}) {
       'this certification."',
       { align: 'justify', width: contentWidth }
     )
-    .moveDown(0.8)
+    .moveDown(0.4)
 
   // FIRMA AUTORIZADA Y FECHA
   const signRowY = doc.y

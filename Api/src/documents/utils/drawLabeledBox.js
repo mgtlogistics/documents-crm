@@ -1,10 +1,25 @@
 // Etiqueta en negritas seguida de una caja rellena (gris) para el valor del campo; posición explícita.
-export default function drawLabeledBox(doc, { x, y, width = 220, label = '', value = '', fontSize = 8, boxHeight = 14, spacing = 6, fill = '#EBEBEB' }) {
+export default function drawLabeledBox(doc, { x, y, width = 220, label = '', value = '', fontSize = 8, boxHeight = 14, minLines = 1, spacing = 6, fill = '#EBEBEB' }) {
   let cursorY = y
 
   if (label) {
     doc.font('Helvetica-Bold').fontSize(fontSize).fillColor('#000000').text(label, x, cursorY, { width })
     cursorY = doc.y - 2
+  }
+
+  let contentHeight = 0
+  if (value) {
+    const valueWidth = width - 6
+    const valueText = String(value)
+    doc
+      .fillColor('#000000')
+      .font('Helvetica')
+      .fontSize(fontSize)
+    contentHeight = Math.max(
+      doc.heightOfString(valueText, { width: valueWidth }),
+      doc.currentLineHeight() * minLines
+    )
+    boxHeight = Math.max(boxHeight, contentHeight + 6)
   }
 
   doc.rect(x, cursorY, width, boxHeight).fillColor(fill).fill()
@@ -15,7 +30,7 @@ export default function drawLabeledBox(doc, { x, y, width = 220, label = '', val
       .fillColor('#000000')
       .font('Helvetica')
       .fontSize(fontSize)
-      .text(String(value), x + 3, cursorY + 3, { width: width - 6, height: boxHeight - 4, ellipsis: true })
+      .text(String(value), x + 3, cursorY + 3, { width: width - 6 })
   }
 
   doc.fillColor('#000000')
