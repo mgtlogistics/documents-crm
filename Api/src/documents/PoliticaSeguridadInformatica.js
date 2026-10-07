@@ -1,19 +1,20 @@
 import PDFDocument from 'pdfkit'
+import writeInlineFormattedText from './utils/writeInlineFormattedText.js'
 
-function drawHeader(doc, pageLabel) {
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(11)
-    .text('POLITICA DE SEGURIDAD INFORMATICA', { align: 'center' })
-    .moveDown(0.2)
+function drawHeader(doc, pageLabel, data) {
+  const contentLeft = doc.page.margins.left
+  const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right
+  doc.x = contentLeft
+  writeInlineFormattedText(doc, data.title, { x: contentLeft, width: contentWidth, font: 'Helvetica-Bold', fontSize: 11, align: 'center' })
+  doc.moveDown(0.2)
 
   doc
     .font('Helvetica')
     .fontSize(8)
-    .text('Codigo: GAA-SGS-9.2-A1-SI-v1', { continued: true })
-    .text('   Proceso: Recursos Humanos', { continued: true })
-    .text('   Version: V1', { continued: true })
-    .text('   Fecha de emision: 28/10/2020', { align: 'right' })
+    .text(`Codigo: ${data.code}`, { continued: true })
+    .text(`   Proceso: ${data.process}`, { continued: true })
+    .text(`   Version: ${data.version}`, { continued: true })
+    .text(`   Fecha de emision: ${data.issueDate}`, { align: 'right' })
     .text(pageLabel, { align: 'right' })
     .moveDown(0.2)
 
@@ -32,31 +33,31 @@ function drawHeader(doc, pageLabel) {
 }
 
 function drawPolicyItem(doc, number, text) {
-  doc
-    .font('Helvetica')
-    .fontSize(9)
-    .text(`${number}. `, { continued: true })
-    .text(text, { align: 'justify' })
-    .moveDown(0.35)
+  const contentLeft = doc.page.margins.left
+  const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right
+  writeInlineFormattedText(doc, `${number}. ${text}`, {
+    x: contentLeft,
+    width: contentWidth,
+    fontSize: 9,
+    align: 'justify',
+  })
+  doc.moveDown(0.35)
 }
 
-export function generarPoliticaSeguridadInformatica() {
+export function generarPoliticaSeguridadInformatica(data = {}) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 45 })
+  const form = data.formData || data.data || data
+  const policyData = {
+    title: form.title || form.documentTitle || 'POLITICA DE SEGURIDAD INFORMATICA',
+    code: form.code || 'GAA-SGS-9.2-A1-SI-v1',
+    process: form.process || form.responsibleProcess || 'Recursos Humanos',
+    version: form.version || 'V1',
+    issueDate: form.issueDate || form.fechaEmision || '28/10/2020',
+    intro: form.intro || form.introduction || 'Global Agentes Aduanales y Asesores en Comercio Exterior, SC establece las directrices siguientes para regular la forma en que previene amenazas informaticas y mantiene la Integridad, Confidencialidad y Disponibilidad de los activos de informacion (equipos de computo y telecomunicaciones).',
+    policyTitle: form.policyTitle || 'POLITICA DE SEGURIDAD INFORMATICA',
+  }
 
-  drawHeader(doc, 'Pagina 1 de 2')
-
-  doc
-    .font('Helvetica')
-    .fontSize(9)
-    .text(
-      'Global Agentes Aduanales y Asesores en Comercio Exterior, SC establece las directrices siguientes para regular la forma en que previene amenazas informaticas y mantiene la Integridad, Confidencialidad y Disponibilidad de los activos de informacion (equipos de computo y telecomunicaciones).',
-      { align: 'justify' }
-    )
-    .moveDown(0.5)
-
-  doc.font('Helvetica-Bold').fontSize(9.5).text('POLITICA DE SEGURIDAD INFORMATICA').moveDown(0.35)
-
-  const items = [
+  const defaultItems = [
     'Los activos de informacion utilizados por los empleados para la conduccion del negocio son propiedad de la empresa.',
     'Los activos de informacion no pueden ser utilizados para propositos ajenos a los asuntos de trabajo.',
     'La informacion digital (correos y archivos) generada y almacenada en equipos de computo de la Agencia Aduanal se considera registro propiedad de la empresa.',
@@ -71,16 +72,40 @@ export function generarPoliticaSeguridadInformatica() {
     'El incumplimiento del presente documento podra considerarse causa de responsabilidad administrativa y/o penal segun su naturaleza y gravedad.',
     'Las sanciones derivadas de incumplimientos se aplicaran conforme al Reglamento Interno de Trabajo y normativa vigente.',
   ]
+  const items = Array.isArray(form.items || form.policies)
+    ? (form.items || form.policies).map((item) => typeof item === 'string' ? item : item?.text || item?.description || '').filter(Boolean)
+    : defaultItems
+  const firstPageItemCount = Number.isInteger(form.firstPageItemCount)
+    ? Math.max(0, Math.min(items.length, form.firstPageItemCount))
+    : Math.min(8, items.length)
 
-  items.slice(0, 8).forEach((text, idx) => {
+  drawHeader(doc, 'Pagina 1 de 2', policyData)
+
+  writeInlineFormattedText(doc, policyData.intro, {
+    x: doc.page.margins.left,
+    width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+    fontSize: 9,
+    align: 'justify',
+  })
+  doc.moveDown(0.5)
+
+  writeInlineFormattedText(doc, policyData.policyTitle, {
+    x: doc.page.margins.left,
+    width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+    font: 'Helvetica-Bold',
+    fontSize: 9.5,
+  })
+  doc.moveDown(0.35)
+
+  items.slice(0, firstPageItemCount).forEach((text, idx) => {
     drawPolicyItem(doc, idx + 1, text)
   })
 
   doc.addPage()
-  drawHeader(doc, 'Pagina 2 de 2')
+  drawHeader(doc, 'Pagina 2 de 2', policyData)
 
-  items.slice(8).forEach((text, idx) => {
-    drawPolicyItem(doc, idx + 9, text)
+  items.slice(firstPageItemCount).forEach((text, idx) => {
+    drawPolicyItem(doc, idx + firstPageItemCount + 1, text)
   })
 
   doc.end()

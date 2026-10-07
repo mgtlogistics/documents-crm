@@ -17,10 +17,10 @@ const getLegalRepresentativeFullName = (company = {}) => {
   return fullName || company?.legalRepresentativeName || 'No llenado'
 }
 
-export function generarCartaDeEncomienda(data) {
+export function generarCartaDeEncomienda(data = {}) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 72 })
-  const AUTOCOMP = '(autocompletado)'
   const company = data?.user?.company || {}
+  const address = data?.user?.address || {}
   const powerOfAttorney = company?.powerOfAttorney || {}
   const powerNotary = powerOfAttorney?.notary || {}
   const legalRepresentativeName = getLegalRepresentativeFullName(company)
@@ -39,12 +39,7 @@ export function generarCartaDeEncomienda(data) {
   const left = doc.page.margins.left
 
 
-  // Title
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(14)
-    .text('CARTA DE ENCOMIENDA', { align: 'center' })
-    .moveDown(0.8)
+
 
 
   // HEADER - Right aligned date
@@ -53,8 +48,16 @@ export function generarCartaDeEncomienda(data) {
     .fontSize(10.5)
 
   drawLetterhead(doc, data)
-  drawPlaceOfIssuance(doc, data,{y:top + 28})
+  drawPlaceOfIssuance(doc, data, { y: top + 50 })
 
+
+  // Title
+  doc
+    .moveDown(1)
+    .font('Helvetica-Bold')
+    .fontSize(14)
+    .text('CARTA DE ENCOMIENDA', { align: 'center' })
+    .moveDown(0.8)
 
   // Agent info
   doc
@@ -71,7 +74,7 @@ export function generarCartaDeEncomienda(data) {
     .font('Helvetica')
     .fontSize(9.5)
     .text(
-      `En mi carácter de Representante Legal de la empresa ${company.socialReason}, con domicilio fiscal en ${data.user.address.street}, número exterior ${data.user.address.exteriorNumber}, número interior ${data.user.address.interiorNumber}, colonia ${data.user.address.neighborhood}, municipio ${data.user.address.city}, localidad ${data.user.address.locality}, entidad federativa ${data.user.address.state}, México, Código Postal ${data.user.address.postalCode}, con Registro Federal de Contribuyentes ${company.rfc}, personalidad que acredito conforme al Poder Notarial número ${powerNumber}, volumen ${powerVolume}, otorgado ante la fe del Notario Público número ${notaryNumber}, Lic. ${notaryName}, manifiesto lo siguiente:`,
+      `En mi carácter de Representante Legal de la empresa ${company.socialReason || 'No llenado'}, con domicilio fiscal en ${address.street || 'No llenado'}, número exterior ${address.exteriorNumber || 'No llenado'}, número interior ${address.interiorNumber || 'No llenado'}, colonia ${address.neighborhood || 'No llenado'}, municipio ${address.city || 'No llenado'}, localidad ${address.locality || 'No llenado'}, entidad federativa ${address.state || 'No llenado'}, México, Código Postal ${address.postalCode || 'No llenado'}, con Registro Federal de Contribuyentes ${company.rfc || 'No llenado'}, personalidad que acredito conforme al Poder Notarial número ${powerNumber}, volumen ${powerVolume}, otorgado ante la fe del Notario Público número ${notaryNumber}, Lic. ${notaryName}, manifiesto lo siguiente:`,
       { align: 'justify' }
     )
     .moveDown(0.8)
@@ -250,9 +253,9 @@ export function generarCartaDeEncomienda(data) {
   doc
     .text('REPRESENTANTE LEGAL DE LA EMPRESA', { align: 'center' })
     .moveDown(0.3)
-    .text(data.user.company.socialReason, { align: 'center' })
+    .text(company.socialReason || 'No llenado', { align: 'center' })
     .moveDown(0.3)
-    .text(data.user.company.rfc, { align: 'center' })
+    .text(company.rfc || 'No llenado', { align: 'center' })
 
   doc.end()
   return doc

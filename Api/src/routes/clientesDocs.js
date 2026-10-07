@@ -207,6 +207,47 @@ router.post('/carta-cfdi', async (req, res) => {
   }
 })
 
+router.get('/carta-de-encomienda', async (req, res) => {
+  try {
+    const userData = await Staff.findById(req.query.userId)
+    if (!userData) {
+      return res.status(404).json({ message: 'No se encontró el usuario' })
+    }
+
+    const doc = generarCartaDeEncomienda({ user: userData })
+    const fileName = 'carta-de-encomienda.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    doc.pipe(res)
+  } catch (error) {
+    return res.status(500).json({
+      message: 'No fue posible generar la carta de encomienda',
+      error: error.message,
+    })
+  }
+})
+
+router.post('/carta-de-encomienda', async (req, res) => {
+  try {
+    const userData = await Staff.findById(req.body.userId)
+    if (!userData) {
+      return res.status(404).json({ message: 'No se encontró el usuario' })
+    }
+
+    const data = { ...req.body, user: userData }
+    const doc = generarCartaDeEncomienda(data)
+    const fileName = 'carta-de-encomienda.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    doc.pipe(res)
+  } catch (error) {
+    return res.status(500).json({
+      message: 'No fue posible generar la carta de encomienda',
+      error: error.message,
+    })
+  }
+})
+
 router.post('/carta-encomienda', async (req, res) => {
   try {
     const userData = await Staff.findById(req.body.userId)
@@ -362,6 +403,28 @@ router.get('/contrato-prestacion-servicios', async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
 
+    doc.pipe(res)
+  } catch (error) {
+    return res.status(500).json({
+      message: 'No fue posible generar el contrato de prestacion de servicios',
+      error: error.message,
+    })
+  }
+})
+
+router.post('/contrato-prestacion-servicios', async (req, res) => {
+  try {
+    const formData = req.body?.formData || req.body?.data || req.body || {}
+    const userId = formData.userId || req.body?.userId
+    const userData = formData.user || (userId ? await Staff.findById(userId) : null)
+    const doc = generarContratoPrestacionServiciosAgenteAduanal({
+      ...formData,
+      user: userData,
+    })
+
+    const fileName = 'contrato-prestacion-servicios-agente-aduanal.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
     doc.pipe(res)
   } catch (error) {
     return res.status(500).json({
@@ -594,6 +657,25 @@ router.get('/contrato-mve', async (req, res) => {
   }
 })
 
+router.post('/contrato-mve', async (req, res) => {
+  try {
+    const formData = req.body?.formData || req.body?.data || req.body || {}
+    const userId = formData.userId || req.body?.userId
+    const userData = formData.user || (userId ? await Staff.findById(userId) : null)
+    const doc = generarContratoMVE({ ...formData, user: userData })
+
+    const fileName = 'contrato-mve-gaa-cliente.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    doc.pipe(res)
+  } catch (error) {
+    return res.status(500).json({
+      message: 'No fue posible generar el contrato MVE',
+      error: error.message,
+    })
+  }
+})
+
 router.get('/contrato-servicios-profesionales', async (req, res) => {
   try {
     const doc = generarContratoServiciosProfesionales()
@@ -654,12 +736,13 @@ router.post('/contrato-servicios-profesionales', async (req, res) => {
 
 router.post('/cuestionario-estandares-seguridad', async (req, res) => {
   try {
-    const userData = await Staff.findById(req.body.userId)
+    const formData = req.body?.formData || req.body?.data || req.body || {}
+    const userId = formData.userId || req.body?.userId
+    const userData = formData.user || (userId ? await Staff.findById(userId) : null)
     const data = {
-      ...req.body,
+      ...formData,
       user: userData,
     }
-    console.log(data)
     const doc = generarCuestionarioEstandaresSeguridad(data)
 
     const fileName = 'cuestionario-estandares-seguridad.pdf'
@@ -693,6 +776,25 @@ router.get('/cuestionario-inicial-necesidades', async (req, res) => {
   }
 })
 
+router.post('/cuestionario-inicial-necesidades', async (req, res) => {
+  try {
+    const formData = req.body?.formData || req.body?.data || req.body || {}
+    const userId = formData.userId || req.body?.userId
+    const userData = formData.user || req.body?.user || (userId ? await Staff.findById(userId) : null)
+    const doc = generarCuestionarioInicialNecesidades({ ...formData, user: userData })
+
+    const fileName = 'cuestionario-inicial-necesidades.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    doc.pipe(res)
+  } catch (error) {
+    return res.status(500).json({
+      message: 'No fue posible generar el cuestionario inicial de necesidades',
+      error: error.message,
+    })
+  }
+})
+
 router.get('/documentos-requeridos-cliente', async (req, res) => {
   try {
     const doc = generarDocumentosRequeridosCliente()
@@ -713,11 +815,25 @@ router.get('/documentos-requeridos-cliente', async (req, res) => {
 router.get('/politica-seguridad-informatica', async (req, res) => {
   try {
     const doc = generarPoliticaSeguridadInformatica()
-
     const fileName = 'politica-seguridad-informatica.pdf'
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    doc.pipe(res)
+  } catch (error) {
+    return res.status(500).json({
+      message: 'No fue posible generar la politica de seguridad informatica',
+      error: error.message,
+    })
+  }
+})
 
+router.post('/politica-seguridad-informatica', async (req, res) => {
+  try {
+    const formData = req.body?.formData || req.body?.data || req.body || {}
+    const doc = generarPoliticaSeguridadInformatica(formData)
+    const fileName = 'politica-seguridad-informatica.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
     doc.pipe(res)
   } catch (error) {
     return res.status(500).json({
@@ -735,6 +851,23 @@ router.get('/politica-trabajo-forzoso', async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
 
+    doc.pipe(res)
+  } catch (error) {
+    return res.status(500).json({
+      message: 'No fue posible generar la política de prohibición del trabajo forzoso',
+      error: error.message,
+    })
+  }
+})
+
+router.post('/politica-trabajo-forzoso', async (req, res) => {
+  try {
+    const formData = req.body?.formData || req.body?.data || req.body || {}
+    const doc = generarPoliticaTrabajoForzoso(formData)
+
+    const fileName = 'politica-trabajo-forzoso.pdf'
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
     doc.pipe(res)
   } catch (error) {
     return res.status(500).json({

@@ -1,8 +1,43 @@
 import PDFDocument from 'pdfkit'
 import drawStyledFooter from './utils/drawStyledFooter.js'
+import writeInlineFormattedText from './utils/writeInlineFormattedText.js'
 
 const C_GRAY = '#D8D8D8'
 const C_BLUE = '#C9D7EE'
+
+function getValue(data, ...keys) {
+  for (const key of keys) {
+    const value = key.split('.').reduce((current, part) => current?.[part], data)
+    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim()
+  }
+  return ''
+}
+
+function isSelected(selection, index, label) {
+  if (Array.isArray(selection)) {
+    return selection[index] === true || selection[index] === 'X'
+      || selection.includes(index) || selection.includes(String(index)) || selection.includes(label)
+  }
+  if (selection && typeof selection === 'object') {
+    return selection[index] === true || selection[index] === 'X' || selection[label] === true || selection[label] === 'X'
+  }
+  return typeof selection === 'string' && selection.toLowerCase() === label.toLowerCase()
+}
+
+function drawCellValue(doc, value, x, y, width, height, options = {}) {
+  if (!value) return
+  doc.font(options.font || 'Helvetica').fontSize(options.fontSize || 8.5).fillColor('#000000')
+  const text = String(value)
+  const measuredHeight = doc.heightOfString(text, { width: width - 10 })
+  const fontSize = measuredHeight > height - 4 ? Math.max(6, (options.fontSize || 8.5) * (height - 4) / measuredHeight) : (options.fontSize || 8.5)
+  doc.fontSize(fontSize).text(text, x + 5, y + 3, { width: width - 10, height: height - 5 })
+}
+
+function drawInlineText(doc, text, x, y, width, fontSize = 9) {
+  doc.x = x
+  doc.y = y
+  writeInlineFormattedText(doc, text, { x, width, fontSize, align: 'left' })
+}
 
 function drawTopBrand(doc) {
   const left = doc.page.margins.left
@@ -70,8 +105,14 @@ function drawHeaderTable(doc, pageNum, totalPages) {
   doc.y = y + 82
 }
 
-export function generarCuestionarioInicialNecesidades() {
+export function generarCuestionarioInicialNecesidades(data = {}) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 40 })
+  const form = data.formData || data.data || data
+  const user = form.user || data.user || {}
+  const representative = user.company?.legalRepresentative || {}
+  const representativeName = [representative.firstName, representative.paternalLastName, representative.maternalLastName]
+    .filter((part) => typeof part === 'string' && part.trim())
+    .join(' ')
 
   // PAGINA 1
   drawTopBrand(doc)
@@ -100,21 +141,27 @@ export function generarCuestionarioInicialNecesidades() {
   y += 18
 
   const generalRows = [
-    'Nombre de la empresa:',
-    'Tipo de empresa:',
-    'Giro de la empresa:',
-    'No. de teléfono:',
-    'Nombre del Representante Legal:',
-    'Nombre de la persona encargada de Comercio\nExterior:',
-    'Dirección de Correo Electrónico:',
+    { label: 'Nombre de la empresa:', key: 'companyName', aliases: ['socialReason', 'razonSocial', 'user.company.socialReason'] },
+    { label: 'Tipo de empresa:', key: 'companyType', aliases: ['tipoEmpresa'] },
+    { label: 'Giro de la empresa:', key: 'businessLine', aliases: ['companyActivity', 'giroEmpresa'] },
+    { label: 'No. de teléfono:', key: 'phone', aliases: ['telephone', 'telefono', 'user.profile.phone'] },
+    { label: 'Nombre del Representante Legal:', key: 'legalRepresentativeName', aliases: ['representativeName', 'user.company.legalRepresentativeName'] },
+    { label: 'Nombre de la persona encargada de Comercio\nExterior:', key: 'foreignTradeContactName', aliases: ['tradeContactName', 'nombreContactoComercioExterior'] },
+    { label: 'Dirección de Correo Electrónico:', key: 'email', aliases: ['contactEmail', 'correo', 'user.email', 'user.company.email'] },
   ]
 
-  generalRows.forEach((label) => {
-    const rowH = label.includes('\\n') ? 26 : 22
+  generalRows.forEach(({ label, key, aliases }) => {
+    const rowH = label.includes('\n') ? 26 : 22
     doc.rect(tableX, y, splitX - tableX, rowH).fillColor(C_BLUE).fill()
     doc.rect(tableX, y, splitX - tableX, rowH).strokeColor('#000000').lineWidth(0.6).stroke()
     doc.rect(splitX, y, tableW - (splitX - tableX), rowH).strokeColor('#000000').lineWidth(0.6).stroke()
     doc.fillColor('#000000').font('Helvetica').fontSize(9.5).text(label, tableX + 6, y + 4, { width: splitX - tableX - 10 })
+    const profileAliases = aliases.filter((alias) => alias.startsWith('user.')).map((alias) => alias.slice(5))
+    const value = getValue(form, key, ...aliases)
+      || getValue(user, ...profileAliases)
+      || (key === 'legalRepresentativeName' ? representativeName : '')
+      || getValue(user, key.replace(/^user\./, ''))
+    drawCellValue(doc, value, splitX, y, tableW - (splitX - tableX), rowH)
     y += rowH
   })
 
@@ -147,25 +194,30 @@ export function generarCuestionarioInicialNecesidades() {
   ]
 
   let listCursor = listY
-  vulnerables.forEach((v) => {
+  const vulnerableSelection = form.vulnerableGoods || form.vulnerableMerchandise || form.mercanciaVulnerable || []
+  vulnerables.forEach((v, index) => {
     doc.font('Helvetica').fontSize(8.8).text(v.text, tableX + 24, listCursor, { width: splitX - tableX - 24 })
+    if (isSelected(vulnerableSelection, index, String.fromCharCode(97 + index))) {
+      doc.font('Helvetica-Bold').fontSize(9).text('X', splitX + 12, listCursor + 2, { width: 20, lineBreak: false })
+    }
     listCursor += v.step
   })
 
   y += specHeaderH - 20
   const bottomRows = [
-    'En caso de llevar a cabo estas actividades favor de\nespecificar.',
-    'Tipo de mercancía que importan:',
-    'Tipo de mercancía que exportan:',
-    'Número aproximado de operaciones',
-    'Valor estimado de las operaciones',
+    { label: 'En caso de llevar a cabo estas actividades favor de\nespecificar.', key: 'vulnerableActivitiesDetails', aliases: ['activitiesDetails', 'actividadesVulnerables'] },
+    { label: 'Tipo de mercancía que importan:', key: 'importedGoods', aliases: ['tipoMercanciaImportada'] },
+    { label: 'Tipo de mercancía que exportan:', key: 'exportedGoods', aliases: ['tipoMercanciaExportada'] },
+    { label: 'Número aproximado de operaciones', key: 'approximateOperations', aliases: ['numberOfOperations', 'numeroOperaciones'] },
+    { label: 'Valor estimado de las operaciones', key: 'estimatedOperationsValue', aliases: ['estimatedValue', 'valorOperaciones'] },
   ]
-  bottomRows.forEach((label) => {
+  bottomRows.forEach(({ label, key, aliases }) => {
     const rowH = label.includes('actividades') ? 30 : 18
     doc.rect(tableX, y, splitX - tableX, rowH).fillColor(C_BLUE).fill()
     doc.rect(tableX, y, splitX - tableX, rowH).strokeColor('#000000').lineWidth(0.6).stroke()
     doc.rect(splitX, y, tableW - (splitX - tableX), rowH).strokeColor('#000000').lineWidth(0.6).stroke()
     doc.fillColor('#000000').font('Helvetica').fontSize(9.5).text(label, tableX + 6, y + 4, { width: splitX - tableX - 10 })
+    drawCellValue(doc, getValue(form, key, ...aliases), splitX, y, tableW - (splitX - tableX), rowH, { fontSize: 8 })
     y += rowH
   })
 
@@ -178,19 +230,20 @@ export function generarCuestionarioInicialNecesidades() {
 
   let p2y = doc.y + 8
   const qRows = [
-    'Se encuentra dado de  alta  en  el  padrón   de\nimportadores:',
-    'Lugares a donde será enviada la mercancía:',
-    'Por el tipo de mercancías requiere descarga a mano o\nmaniobras especiales:',
-    'Requiere bodega en USA:',
-    'Favor de proporcionarnos el contacto de las personas\nencargadas de comercio exterior',
+    { label: 'Se encuentra dado de  alta  en  el  padrón   de\nimportadores:', key: 'registeredImporter', aliases: ['importerRegistry', 'padronImportadores'] },
+    { label: 'Lugares a donde será enviada la mercancía:', key: 'shipmentDestinations', aliases: ['destinations', 'lugaresEnvio'] },
+    { label: 'Por el tipo de mercancías requiere descarga a mano o\nmaniobras especiales:', key: 'specialHandling', aliases: ['requiresSpecialHandling', 'maniobrasEspeciales'] },
+    { label: 'Requiere bodega en USA:', key: 'requiresUsaWarehouse', aliases: ['usaWarehouse', 'bodegaUSA'] },
+    { label: 'Favor de proporcionarnos el contacto de las personas\nencargadas de comercio exterior', key: 'foreignTradeContacts', aliases: ['tradeContacts', 'contactosComercioExterior'] },
   ]
 
-  qRows.forEach((q) => {
-    const rowH = q.includes('\\n') ? 38 : 27
+  qRows.forEach(({ label, key, aliases }) => {
+    const rowH = label.includes('\n') ? 38 : 27
     doc.rect(tableX, p2y, splitX - tableX, rowH).fillColor(C_BLUE).fill()
     doc.rect(tableX, p2y, splitX - tableX, rowH).strokeColor('#000000').lineWidth(0.6).stroke()
     doc.rect(splitX, p2y, tableW - (splitX - tableX), rowH).strokeColor('#000000').lineWidth(0.6).stroke()
-    doc.fillColor('#000000').font('Helvetica').fontSize(10).text(q, tableX + 6, p2y + 5, { width: splitX - tableX - 10 })
+    doc.fillColor('#000000').font('Helvetica').fontSize(10).text(label, tableX + 6, p2y + 5, { width: splitX - tableX - 10 })
+    drawCellValue(doc, getValue(form, key, ...aliases), splitX, p2y, tableW - (splitX - tableX), rowH, { fontSize: 8.5 })
     p2y += rowH
   })
 
@@ -201,6 +254,12 @@ export function generarCuestionarioInicialNecesidades() {
   const boxW = 40
   doc.rect(tableX + 228, p2y - 6, boxW, 28).strokeColor('#000000').lineWidth(0.6).stroke()
   doc.rect(tableX + 292, p2y - 6, boxW, 28).strokeColor('#000000').lineWidth(0.6).stroke()
+  const quoteAnswer = getValue(form, 'requiresQuote', 'quoteRequired', 'cotizaTarifas').toLowerCase()
+  if (quoteAnswer === 'si' || quoteAnswer === 'sí' || quoteAnswer === 'true' || quoteAnswer === 'yes') {
+    doc.font('Helvetica-Bold').fontSize(10).text('X', tableX + 242, p2y, { lineBreak: false })
+  } else if (quoteAnswer === 'no' || quoteAnswer === 'false') {
+    doc.font('Helvetica-Bold').fontSize(10).text('X', tableX + 306, p2y, { lineBreak: false })
+  }
   doc.font('Helvetica').fontSize(14).text('Si', tableX + 244, p2y + 1, { lineBreak: false })
   doc.font('Helvetica').fontSize(14).text('No', tableX + 305, p2y + 1, { lineBreak: false })
 
@@ -239,10 +298,13 @@ export function generarCuestionarioInicialNecesidades() {
   drawHeaderTable(doc, 3, 3)
 
   let p3y = doc.y + 14
-  doc.font('Helvetica').fontSize(10.5).text(
-    'Conoce que documentos son requeridos por la Ley  Aduanera, marque con una “X” donde requiera\nasesoría para conocerlos y la manera de obtenerlos.',
+  drawInlineText(
+    doc,
+    'Conoce que documentos son requeridos por la Ley Aduanera, marque con una “X” donde requiera asesoría para conocerlos y la manera de obtenerlos.',
     tableX,
-    p3y
+    p3y,
+    contentW,
+    10.5
   )
 
   p3y += 38
@@ -259,11 +321,15 @@ export function generarCuestionarioInicialNecesidades() {
     'Autorizaciones de otras secretarias',
   ]
 
-  reqDocs.forEach((d) => {
+  const requestedDocuments = form.requiredDocuments || form.documentsRequested || form.documentosRequeridos || []
+  reqDocs.forEach((d, index) => {
     doc.rect(tableX + 140, p3y, p3Split - (tableX + 140), 22).fillColor(C_BLUE).fill()
     doc.rect(tableX + 140, p3y, p3Split - (tableX + 140), 22).strokeColor('#000000').lineWidth(0.6).stroke()
     doc.rect(p3Split, p3y, 45, 22).strokeColor('#000000').lineWidth(0.6).stroke()
     doc.fillColor('#000000').font('Helvetica').fontSize(10.5).text(d, tableX + 146, p3y + 4)
+    if (isSelected(requestedDocuments, index, d)) {
+      doc.font('Helvetica-Bold').fontSize(11).text('X', p3Split + 16, p3y + 4, { width: 20, align: 'center', lineBreak: false })
+    }
     p3y += 22
   })
 
@@ -288,7 +354,7 @@ export function generarCuestionarioInicialNecesidades() {
   ]
   motivos.forEach((m) => {
     doc.font('Helvetica').fontSize(10).text(m, tableX + 18, p3y, { width: contentW - 30 })
-    p3y += m.includes('b)'||'c)') ? 44 : 22
+    p3y += m.includes('b)') || m.includes('c)') ? 44 : 22
   })
 
   drawStyledFooter(doc, 3, 3)

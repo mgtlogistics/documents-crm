@@ -1,23 +1,71 @@
 import PDFDocument from 'pdfkit'
+import writeInlineFormattedText from './utils/writeInlineFormattedText.js'
+
+function writeContractText(doc, text, options = {}) {
+  const fontSize = options.fontSize ?? 9.2
+  const bottom = doc.page.height - doc.page.margins.bottom
+  if (doc.y > bottom - 35) doc.addPage()
+
+  writeInlineFormattedText(doc, text, {
+    x: doc.page.margins.left + (options.indent || 0),
+    width: doc.page.width - doc.page.margins.left - doc.page.margins.right - (options.indent || 0),
+    font: options.bold ? 'Helvetica-Bold' : 'Helvetica',
+    fontSize,
+    align: options.align || 'justify',
+  })
+  doc.moveDown(options.spacing ?? 0.35)
+}
+
+const getTextValue = (...values) => values.find((value) => typeof value === 'string' && value.trim())?.trim()
+
+function formatAddress(value) {
+  if (typeof value === 'string') return value.trim()
+  if (!value || typeof value !== 'object') return ''
+
+  return [
+    value.street,
+    value.exteriorNumber && `número exterior ${value.exteriorNumber}`,
+    value.interiorNumber && `interior ${value.interiorNumber}`,
+    value.neighborhood && `colonia ${value.neighborhood}`,
+    value.locality,
+    value.city,
+    value.state,
+    value.postalCode && `C.P. ${value.postalCode}`,
+    value.country,
+  ].filter((part) => typeof part === 'string' && part.trim()).join(', ')
+}
 
 function addTitle(doc, text) {
-  if (doc.y > 710) doc.addPage()
-  doc.font('Helvetica-Bold').fontSize(11).text(text, { align: 'left' }).moveDown(0.4)
+  writeContractText(doc, text, { bold: true, fontSize: 11, align: 'left', spacing: 0.4 })
 }
 
 function addParagraph(doc, text, size = 9.2) {
-  if (doc.y > 710) doc.addPage()
-  doc.font('Helvetica').fontSize(size).text(text, { align: 'justify' }).moveDown(0.35)
+  writeContractText(doc, text, { fontSize: size, spacing: 0.35 })
 }
 
 function addBullet(doc, text) {
-  if (doc.y > 710) doc.addPage()
-  doc.font('Helvetica').fontSize(9.1).text(`- ${text}`, { align: 'justify', indent: 12 }).moveDown(0.25)
+  writeContractText(doc, `- ${text}`, { fontSize: 9.1, indent: 12, spacing: 0.25 })
 }
 
-export function generarContratoMVE() {
+export function generarContratoMVE(data = {}) {
   const doc = new PDFDocument({ size: 'LETTER', margin: 60 })
-  const AUTOCOMP = '(autocompletado)'
+  const user = data.user || {}
+  const company = user.company || data.company || {}
+  const representative = company.legalRepresentative || {}
+  const blankField = '___________________________'
+  const clientName = getTextValue(data.clientName, data.companyName, data.socialReason, company.socialReason) || blankField
+  const representativeName = getTextValue(
+    data.representativeName,
+    data.legalRepresentativeName,
+    [representative.firstName, representative.paternalLastName, representative.maternalLastName].filter(Boolean).join(' '),
+    company.legalRepresentativeName
+  ) || blankField
+  const clientRfc = getTextValue(data.clientRfc, data.companyRfc, data.rfc, company.rfc) || blankField
+  const clientAddress = formatAddress(user.address || data.fiscalAddress || data.address) || blankField
+  const signingPlace = getTextValue(data.signingPlace, data.city, user.address?.city) || blankField
+  const signingDay = getTextValue(data.signingDay, data.day) || blankField
+  const signingMonth = getTextValue(data.signingMonth, data.month) || blankField
+  const signingYear = getTextValue(data.signingYear, data.year) || blankField
 
   doc
     .font('Helvetica-Bold')
@@ -30,7 +78,7 @@ export function generarContratoMVE() {
 
   addParagraph(
     doc,
-    `Contrato celebrado entre Global Agentes Aduanales y Asesores en Comercio Exterior S.C. (EL PRESTADOR DE SERVICIOS) y ${AUTOCOMP} (EL CLIENTE), para la asesoria y soporte tecnico de MVE en VUCEM.`
+    `Contrato celebrado entre Global Agentes Aduanales y Asesores en Comercio Exterior S.C. (EL PRESTADOR DE SERVICIOS) y **${clientName}** (EL CLIENTE), representado por ${representativeName}, RFC ${clientRfc}, con domicilio en ${clientAddress}, para la asesoria y soporte tecnico de MVE en VUCEM.`
   )
 
   addTitle(doc, 'DECLARACIONES')
@@ -40,7 +88,7 @@ export function generarContratoMVE() {
   )
   addParagraph(
     doc,
-    `EL CLIENTE declara estar legalmente constituido, contar con representante con facultades y requerir asesoria para la correcta elaboracion y transmision de la MVE conforme al articulo 59 fraccion III de la Ley Aduanera, articulo 81 de su Reglamento y Regla 1.5.1 RGCE 2026.`
+    `EL CLIENTE ${clientName} declara estar legalmente constituido, contar con representante con facultades y requerir asesoria para la correcta elaboracion y transmision de la MVE conforme al articulo 59 fraccion III de la Ley Aduanera, articulo 81 de su Reglamento y Regla 1.5.1 RGCE 2026. Su domicilio fiscal es ${clientAddress} y su RFC es ${clientRfc}.`
   )
   addParagraph(
     doc,
@@ -110,7 +158,7 @@ export function generarContratoMVE() {
 
   addParagraph(
     doc,
-    `Leido integramente el contrato, LAS PARTES lo firman en ${AUTOCOMP}, a los ${AUTOCOMP} dias del mes de ${AUTOCOMP} de ${AUTOCOMP}.`
+    `Leido integramente el contrato, LAS PARTES lo firman en ${signingPlace}, a los ${signingDay} dias del mes de ${signingMonth} de ${signingYear}.`
   )
 
   doc.moveDown(1.4)
@@ -119,7 +167,7 @@ export function generarContratoMVE() {
     .font('Helvetica-Bold')
     .fontSize(9.5)
     .text('EL PRESTADOR DE SERVICIOS', 70, doc.y, { width: 220, align: 'center' })
-    .text('EL CLIENTE', 325, doc.y - 12, { width: 220, align: 'center' })
+    .text(`EL CLIENTE\n${clientName}`, 325, doc.y - 12, { width: 220, align: 'center' })
 
   doc.moveDown(2.4)
 
@@ -129,7 +177,7 @@ export function generarContratoMVE() {
     .text('____________________________', 70, doc.y, { width: 220, align: 'center' })
     .text('____________________________', 325, doc.y - 10, { width: 220, align: 'center' })
     .text('Nombre y firma', 70, doc.y + 4, { width: 220, align: 'center' })
-    .text('Nombre y firma', 325, doc.y - 8, { width: 220, align: 'center' })
+    .text(`${representativeName}\nNombre y firma`, 325, doc.y - 8, { width: 220, align: 'center' })
 
   doc.end()
   return doc

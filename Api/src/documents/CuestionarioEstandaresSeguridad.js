@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit'
+import writeFormField from './utils/writeFormField.js'
 
 // ─── Constantes de color y dimensiones ────────────────────────────────────────
 const C_BLACK  = '#000000'
@@ -82,9 +83,32 @@ function chkPag(doc, alto, estado) {
 }
 
 // ─── Sección de checklist ──────────────────────────────────────────────────────
+function getAnswer(answers, sectionKey, sectionIndex, itemIndex) {
+  const sectionAnswers = Array.isArray(answers)
+    ? answers[sectionIndex]
+    : answers?.[sectionKey] ?? answers?.[sectionIndex]
+  const answer = Array.isArray(sectionAnswers)
+    ? sectionAnswers[itemIndex]
+    : sectionAnswers?.[itemIndex] ?? answers?.[`${sectionKey}.${itemIndex}`] ?? answers?.[`${sectionKey}_${itemIndex + 1}`]
+
+  if (typeof answer === 'string') return answer.trim().toUpperCase()
+  if (answer && typeof answer === 'object') {
+    return ['C', 'NC', 'NA'].find((option) => answer[option] === true || answer[option.toLowerCase()] === true)
+      || String(answer.value ?? answer.selection ?? answer.status ?? '').trim().toUpperCase()
+  }
+  return ''
+}
+
+function getSectionKey(title) {
+  return title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/\([^)]*\)/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+}
+
 function dibujarSeccion(doc, titulo, items, left, estado) {
   const TH = 15   // alto título
   const RH = 13   // alto fila base
+  const sectionIndex = estado.sectionIndex++
+  const sectionKey = getSectionKey(titulo)
 
   chkPag(doc, TH + RH * 3, estado)
 
@@ -125,8 +149,14 @@ function dibujarSeccion(doc, titulo, items, left, estado) {
       .text(texto, x + 3, y + 3, { width: CW[1] - 6 })
     x += CW[1]
 
+    const answer = getAnswer(estado.answers, sectionKey, sectionIndex, idx)
     for (let i = 0; i < 3; i++) {
       doc.rect(x, y, CW[i + 2], rowH).strokeColor(C_BLACK).lineWidth(0.5).stroke()
+      const option = ['C', 'NC', 'NA'][i]
+      if (answer === option || (answer === '1' && option === 'C') || (answer === '0' && option === 'NC') || (answer === 'X' && option === 'NA')) {
+        doc.font('Helvetica-Bold').fontSize(7).fillColor(C_BLACK)
+          .text('X', x, y + (rowH - 8) / 2, { width: CW[i + 2], align: 'center', lineBreak: false })
+      }
       x += CW[i + 2]
     }
     doc.y = y + rowH
@@ -142,30 +172,26 @@ function dibujarSeccion(doc, titulo, items, left, estado) {
   doc.y = y + RH
 }
 
-export function generarCuestionarioEstandaresSeguridad() {
+export function generarCuestionarioEstandaresSeguridad(data = {}) {
   const doc  = new PDFDocument({ size: 'LETTER', layout: 'portrait', margin: 40 })
   const left = doc.page.margins.left
   const w    = doc.page.width - doc.page.margins.left - doc.page.margins.right
   const TOTAL_PAGS = 3
-  const estado = { pag: 1, total: TOTAL_PAGS }
+  const answers = data.answers || data.respuestas || data.responses || {}
+  const estado = { pag: 1, total: TOTAL_PAGS, answers, sectionIndex: 0 }
 
   // ── PÁGINA 1 ──────────────────────────────────────────────────────────────────
   dibujarCabecera(doc, 1, TOTAL_PAGS)
 
   // Campos generales
-  const fY = doc.y
-  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C_BLACK)
-    .text('Fecha:', left, fY, { continued: true, lineBreak: false })
-    .font('Helvetica').text('  _______________________________________________', { lineBreak: false })
-  doc.y += 12
-  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C_BLACK)
-    .text('Razon social del Socio Comercial', left, doc.y, { continued: true, lineBreak: false })
-    .font('Helvetica').text('  _____________________________________________', { lineBreak: false })
-  doc.y += 12
-  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C_BLACK)
-    .text('Nombre y firma de la persona que contesta la evaluación:', left, doc.y, { continued: true, lineBreak: false })
-    .font('Helvetica').text('  __________________________', { lineBreak: false })
-  doc.y += 10
+  const dateValue = data.date || data.fecha || ''
+  const formattedDate = dateValue instanceof Date
+    ? dateValue.toLocaleDateString('es-MX')
+    : String(dateValue)
+  writeFormField(doc, 'Fecha', formattedDate, { fontSize: 7.5, lineWidth: 300, spacing: 0.2 })
+  writeFormField(doc, 'Razon social del Socio Comercial', data.companyName || data.socialReason || data.razonSocial || data.user?.company?.socialReason || '', { fontSize: 7.5, lineWidth: 260, spacing: 0.2 })
+  writeFormField(doc, 'Nombre y firma de la persona que contesta la evaluación', data.respondentName || data.respondent || data.nombreQuienContesta || '', { fontSize: 7.5, lineWidth: 210, spacing: 0.2 })
+  doc.moveDown(0.3)
 
   // Caja INSTRUCCIONES (página 1)
   const iY = doc.y + 3
@@ -385,14 +411,32 @@ export function generarCuestionarioEstandaresSeguridad() {
   })
   doc.y = ahY + AHDR
 
+  const actions = data.correctiveActions || data.acciones || data.actions || []
   for (let r = 0; r < 3; r++) {
+    const action = actions[r]
+    const actionText = typeof action === 'string' ? action : action?.action || action?.description || action?.accion || ''
+    const startDate = action?.startDate || action?.fechaInicio || ''
+    const endDate = action?.endDate || action?.fechaTermino || action?.fechaFin || ''
+    doc.font('Helvetica').fontSize(7)
+    const rowHeight = Math.max(
+      AROW,
+      doc.heightOfString(String(actionText), { width: aW[1] - 6 }) + 6,
+      doc.heightOfString(String(startDate), { width: aW[2] - 6 }) + 6,
+      doc.heightOfString(String(endDate), { width: aW[3] - 6 }) + 6,
+    )
+    chkPag(doc, rowHeight, estado)
     const rY = doc.y
     ax = left
     aW.forEach((cw, i) => {
-      doc.rect(ax, rY, cw, AROW).strokeColor(C_BLACK).lineWidth(0.5).stroke()
+      doc.rect(ax, rY, cw, rowHeight).strokeColor(C_BLACK).lineWidth(0.5).stroke()
+      const values = [String(r + 1), actionText, startDate, endDate]
+      if (values[i]) {
+        doc.font('Helvetica').fontSize(7).fillColor(C_DARK)
+          .text(String(values[i]), ax + 3, rY + 3, { width: cw - 6, height: rowHeight - 6 })
+      }
       ax += cw
     })
-    doc.y = rY + AROW
+    doc.y = rY + rowHeight
   }
 
   dibujarPie(doc)

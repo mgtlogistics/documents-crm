@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit'
 import createPdfList from './utils/createPdfList.js'
+import writeInlineFormattedText from './utils/writeInlineFormattedText.js'
 
 /**
  * Escribe un título de sección o cláusula asegurando el control del eje X
@@ -10,32 +11,68 @@ function writeSectionTitle(doc, text, contentLeft, contentWidth) {
     doc.addPage()
   }
   doc.x = contentLeft
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(10)
-    .text(text, { width: contentWidth, align: 'left' })
-    .moveDown(0.4)
+  writeInlineFormattedText(doc, text, {
+    x: contentLeft,
+    width: contentWidth,
+    font: 'Helvetica-Bold',
+    fontSize: 10,
+    align: 'left',
+  })
+  doc.moveDown(0.4)
 }
 
 /**
  * Escribe un párrafo con alineación justificada controlando estrictamente las coordenadas.
  */
-function writeParagraph(doc, text, contentLeft, contentWidth, size = 9) {
+function writeEditableText(doc, text, contentLeft, contentWidth, size = 9) {
   if (doc.y > doc.page.height - doc.page.margins.bottom - 35) {
     doc.addPage()
   }
-  doc.x = contentLeft
-  doc
-    .font('Helvetica')
-    .fontSize(size)
-    .text(text, { align: 'justify', width: contentWidth })
-    .moveDown(0.5)
+  writeInlineFormattedText(doc, text, {
+    x: contentLeft,
+    width: contentWidth,
+    fontSize: size,
+    align: 'justify',
+  })
+  doc.moveDown(0.5)
 }
 
-export function generarContratoPrestacionServiciosAgenteAduanal() {
+const getTextValue = (...values) => values.find((value) => typeof value === 'string' && value.trim())?.trim()
+
+function formatClientAddress(value) {
+  if (typeof value === 'string') return value.trim()
+  if (!value || typeof value !== 'object') return ''
+
+  return [
+    value.street,
+    value.exteriorNumber && `número exterior ${value.exteriorNumber}`,
+    value.interiorNumber && `interior ${value.interiorNumber}`,
+    value.neighborhood && `colonia ${value.neighborhood}`,
+    value.locality,
+    value.city,
+    value.state,
+    value.postalCode && `C.P. ${value.postalCode}`,
+    value.country,
+  ].filter((part) => typeof part === 'string' && part.trim()).join(', ')
+}
+
+export function generarContratoPrestacionServiciosAgenteAduanal(data = {}) {
   // 1. CONFIGURACIÓN ESTRUCTURAL (Margen de 60pt óptimo para Letter)
   const doc = new PDFDocument({ size: 'LETTER', margin: 60 })
-  const AUTOCOMP = '___________________________'
+  const blankField = '___________________________'
+  const user = data.user || {}
+  const company = user.company || data.company || {}
+  const address = user.address || data.fiscalAddress || data.address
+  const representative = company.legalRepresentative || {}
+  const companyName = getTextValue(data.companyName, data.socialReason, company.socialReason) || blankField
+  const representativeName = getTextValue(
+    data.legalRepresentativeName,
+    data.representativeName,
+    [representative.firstName, representative.paternalLastName, representative.maternalLastName].filter(Boolean).join(' '),
+    company.legalRepresentativeName
+  ) || blankField
+  const clientAddress = formatClientAddress(address) || blankField
+  const clientRfc = getTextValue(data.companyRfc, data.rfc, company.rfc) || blankField
   
   const contentLeft = doc.page.margins.left
   const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right
@@ -51,31 +88,31 @@ export function generarContratoPrestacionServiciosAgenteAduanal() {
     })
     .moveDown(0.4)
 
-  writeParagraph(
+  writeEditableText(
     doc,
-    'CONTRATO DE PRESTACIÓN DE SERVICIOS PARA EL DESPACHO ADUANAL DE LAS MERCANCÍAS DE COMERCIO EXTERIOR, QUE CELEBRA LA EMPRESA GLOBAL AGENTES ADUANALES Y ASESORES EN COMERCIO EXTERIOR SC, QUE EN ESTE ACTO SERÁ REPRESENTADA POR EL C. LUIS FERNANDO VIÑALS ORTIZ DE LA PEÑA EN SU CARÁCTER DE APODERADO LEGAL Y A QUIEN EN LO SUCESIVO SE LE DENOMINARÁ "EL PRESTADOR", Y POR OTRA PARTE, LA EMPRESA ' + AUTOCOMP + ' REPRESENTADA EN ESTE ACTO POR EL C. ' + AUTOCOMP + ' EN SU CARÁCTER DE APODERADO LEGAL Y A QUIEN EN LO SUCESIVO SE LE DENOMINARÁ "EL PRESTATARIO" AL TENOR DE LAS SIGUIENTES DECLARACIONES Y CLÁUSULAS:',
+    `CONTRATO DE PRESTACIÓN DE SERVICIOS PARA EL DESPACHO ADUANAL DE LAS MERCANCÍAS DE COMERCIO EXTERIOR, QUE CELEBRA LA EMPRESA GLOBAL AGENTES ADUANALES Y ASESORES EN COMERCIO EXTERIOR SC, QUE EN ESTE ACTO SERÁ REPRESENTADA POR EL C. LUIS FERNANDO VIÑALS ORTIZ DE LA PEÑA EN SU CARÁCTER DE APODERADO LEGAL Y A QUIEN EN LO SUCESIVO SE LE DENOMINARÁ "EL PRESTADOR", Y POR OTRA PARTE, LA EMPRESA ${companyName} REPRESENTADA EN ESTE ACTO POR EL C. ${representativeName} EN SU CARÁCTER DE APODERADO LEGAL Y A QUIEN EN LO SUCESIVO SE LE DENOMINARÁ "EL PRESTATARIO" AL TENOR DE LAS SIGUIENTES DECLARACIONES Y CLÁUSULAS:`,
     contentLeft,
     contentWidth
   )
 
   // 3. SECCIÓN: DECLARACIONES
-  writeSectionTitle(doc, 'DECLARACIONESSSS', contentLeft, contentWidth)
+  writeSectionTitle(doc, 'DECLARACIONES', contentLeft, contentWidth)
 
   writeSectionTitle(doc, 'A) "EL PRESTADOR" declara por conducto de su representante legal:', contentLeft, contentWidth)
   
-  writeParagraph(
+  writeEditableText(
     doc,
     '1. Ser una sociedad civil existente de acuerdo con las leyes de los Estados Unidos Mexicanos, según consta en la escritura pública número 1,156 del 15 de junio 2015, otorgada ante la fe del Notario Público número 89 del municipio de Nuevo Laredo, Tamaulipas.',
     contentLeft,
     contentWidth
   )
-  writeParagraph(
+  writeEditableText(
     doc,
     '2. Que tiene su domicilio fiscal ubicado en la calle Dr. Mier número 4309, Colonia Hidalgo, Nuevo Laredo, Tamaulipas, Código Postal 88160.',
     contentLeft,
     contentWidth
   )
-  writeParagraph(
+  writeEditableText(
     doc,
     '3. Que su objeto social principal es la facilitación de la prestación de servicios profesionales de las patentes aduanales que la integran, las cuales cuentan con las autorizaciones correspondientes del Servicio de Administración Tributaria (SAT) para operar en las diversas aduanas del país, siendo las siguientes de manera enunciativa mas no limitativa:',
     contentLeft,
@@ -99,28 +136,28 @@ export function generarContratoPrestacionServiciosAgenteAduanal() {
 
   writeSectionTitle(doc, 'B) "EL PRESTATARIO" declara por conducto de su representante legal:', contentLeft, contentWidth)
   
-  writeParagraph(
+  writeEditableText(
     doc,
     '1. Ser una persona moral debidamente constituida y existente de conformidad con las leyes de la República Mexicana, según consta en el instrumento público que acreditará oportunamente mediante copia simple adjunta al expediente de identificación corporativa.',
     contentLeft,
     contentWidth
   )
-  writeParagraph(
+  writeEditableText(
     doc,
     '2. Que su representante legal cuenta con las facultades necesarias y suficientes para obligar a su representada en los términos de este contrato, manifestando bajo protesta de decir verdad que dichas facultades no le han sido revocadas, modificadas ni limitadas en forma alguna.',
     contentLeft,
     contentWidth
   )
-  writeParagraph(
+  writeEditableText(
     doc,
-    '3. Que tiene su domicilio fiscal en ' + AUTOCOMP + ' con Registro Federal de Contribuyentes (RFC) ' + AUTOCOMP + ', manifestando que se encuentra inscrito de manera regular ante el padrón de importadores y, en su caso, de sectores específicos.',
+    `3. Que tiene su domicilio fiscal en ${clientAddress} con Registro Federal de Contribuyentes (RFC) ${clientRfc}, manifestando que se encuentra inscrito de manera regular ante el padrón de importadores y, en su caso, de sectores específicos.`,
     contentLeft,
     contentWidth
   )
 
   writeSectionTitle(doc, 'C) "LAS PARTES" declaran de manera conjunta:', contentLeft, contentWidth)
   
-  writeParagraph(
+  writeEditableText(
     doc,
     '1. Que se reconocen mutuamente la personalidad jurídica con la que comparecen a la celebración de este acto y manifiestan que es su libre voluntad celebrar el presente instrumento, sin que medie dolo, error, mala fe, violencia ni ningún otro vicio del consentimiento que pudiera invalidarlo.',
     contentLeft,
@@ -224,7 +261,7 @@ export function generarContratoPrestacionServiciosAgenteAduanal() {
   // Renderizado secuencial e ininterrumpido de las cláusulas
   for (const clausula of clausulasTexto) {
     writeSectionTitle(doc, clausula.title, contentLeft, contentWidth)
-    writeParagraph(doc, clausula.text, contentLeft, contentWidth)
+    writeEditableText(doc, clausula.text, contentLeft, contentWidth)
   }
 
   // 5. CIERRE DEL DOCUMENTO Y TRANSICIÓN A FIRMAS
@@ -233,7 +270,7 @@ export function generarContratoPrestacionServiciosAgenteAduanal() {
     doc.addPage()
   }
 
-  writeParagraph(
+  writeEditableText(
     doc,
     'Enterados del contenido y alcance del presente instrumento, las partes lo firman por triplicado en unión de dos testigos en la ciudad de Nuevo Laredo, Tamaulipas.',
     contentLeft,
